@@ -1,3 +1,4 @@
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from "react"
 import { motion } from "motion/react"
 import {
@@ -24,6 +25,14 @@ type Page =
   | "payment-waiting"
   | "payment-success"
   | "payment-failed"
+  | "templates"
+  | "pricing"
+  | "features"
+  | "about"
+  | "faq"
+  | "contact"
+  | "terms"
+  | "privacy"
 type AuthTab = "login" | "register"
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -352,17 +361,16 @@ function Navbar({ setPage, setAuthTab }: { setPage: (p: Page) => void; setAuthTa
           <span className="font-serif text-xl font-semibold italic">Invito</span>
         </button>
         <div className="hidden md:flex items-center gap-8">
-          {["Fitur", "Tema", "Harga", "Blog"].map((item) => (
-            <button key={item} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              {item}
-            </button>
-          ))}
+          <button onClick={() => setPage("features")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Fitur</button>
+          <button onClick={() => setPage("templates")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Tema</button>
+          <button onClick={() => setPage("pricing")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Harga</button>
+          <button onClick={() => setPage("faq")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</button>
         </div>
         <div className="hidden md:flex items-center gap-3">
           <button onClick={() => { setAuthTab("login"); setPage("login") }} className="px-4 py-2 text-sm text-foreground hover:text-primary transition-colors">
             Masuk
           </button>
-          <button onClick={() => { setAuthTab("register"); setPage("login") }} className="px-5 py-2.5 text-sm bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all hover:shadow-[0_4px_16px_rgba(196,149,74,0.4)]">
+          <button onClick={() => setPage("checkout")} className="px-5 py-2.5 text-sm bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all hover:shadow-[0_4px_16px_rgba(196,149,74,0.4)]">
             Mulai Gratis
           </button>
         </div>
@@ -411,7 +419,7 @@ function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setA
               <button onClick={() => setPage("checkout")} className="px-7 py-3.5 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all hover:shadow-[0_8px_28px_rgba(196,149,74,0.38)] flex items-center gap-2 text-sm">
                 Mulai Buat Undangan <ArrowRight className="w-4 h-4" />
               </button>
-              <button className="px-7 py-3.5 border border-border rounded-full font-medium hover:border-primary/60 hover:text-primary transition-all flex items-center gap-2 text-sm">
+              <button onClick={() => setPage("templates")} className="px-7 py-3.5 border border-border rounded-full font-medium hover:border-primary/60 hover:text-primary transition-all flex items-center gap-2 text-sm">
                 <Play className="w-3.5 h-3.5 fill-current" /> Lihat Template
               </button>
             </div>
@@ -435,7 +443,7 @@ function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setA
                   <div className="px-6 pt-4 pb-2 flex justify-between items-center">
                     <span className="text-[10px] text-foreground/50">9:41</span>
                     <div className="w-20 h-4 bg-foreground rounded-full opacity-80" />
-                    <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-1 h-1 bg-foreground/30 rounded-full" />)}</div>
+                    <div className="flex gap-1">{[0, 1, 2].map(i => <div key={i} className="w-1 h-1 bg-foreground/30 rounded-full" />)}</div>
                   </div>
                   <div className="mx-3 rounded-2xl overflow-hidden shadow-md">
                     <img src="https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=320&h=200&fit=crop&auto=format" alt="invitation preview" className="w-full h-44 object-cover" />
@@ -511,7 +519,9 @@ function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setA
                   <li key={i} className="flex items-start gap-2.5 text-sm"><Check className="w-4 h-4 text-muted-foreground/60 flex-shrink-0 mt-0.5" />{f}</li>
                 ))}
               </ul>
-              <button className="w-full py-3.5 border border-border rounded-full text-sm hover:border-primary hover:text-primary transition-all">Lihat Detail</button>
+              <button onClick={() => {
+                alert("Fitur Undangan Cetak akan segera hadir! Silakan pilih Undangan Digital.");
+              }} className="w-full py-3.5 border border-border rounded-full text-sm hover:border-primary hover:text-primary transition-all">Lihat Detail</button>
             </div>
           </div>
         </div>
@@ -613,7 +623,7 @@ function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setA
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="flex flex-col items-center text-center">
                 <div className="relative mb-5">
                   <div className="w-14 h-14 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-[0_4px_20px_rgba(196,149,74,0.4)]"><Icon className="w-6 h-6" /></div>
-                  <span className="absolute -top-2 -right-2 text-[10px] font-mono text-primary/50 bg-card border border-primary/20 rounded-full w-5 h-5 flex items-center justify-center">{i+1}</span>
+                  <span className="absolute -top-2 -right-2 text-[10px] font-mono text-primary/50 bg-card border border-primary/20 rounded-full w-5 h-5 flex items-center justify-center">{i + 1}</span>
                 </div>
                 <h3 className="font-serif font-semibold mb-2">{title}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
@@ -670,33 +680,51 @@ function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setA
       <footer className="py-16 px-6 bg-foreground text-background">
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10 mb-14">
+            {/* Brand */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-2 mb-5">
                 <Heart className="w-5 h-5 text-primary fill-primary/30" />
                 <span className="font-serif text-xl font-semibold italic">Invito</span>
               </div>
-              <p className="text-sm text-background/55 leading-relaxed max-w-xs">Platform undangan digital pernikahan terbaik di Indonesia. Jadikan momen spesial Anda semakin berkesan.</p>
-              <div className="flex gap-3 mt-6">
-                {[Instagram, Facebook, Twitter].map((Icon, i) => (
-                  <button key={i} className="w-9 h-9 bg-background/10 rounded-full flex items-center justify-center hover:bg-primary transition-colors"><Icon className="w-4 h-4" /></button>
-                ))}
-              </div>
+              <p className="text-sm text-background/55 leading-relaxed max-w-xs">
+                Platform undangan digital pernikahan terbaik di Indonesia. Jadikan momen spesial Anda semakin berkesan.
+              </p>
             </div>
-            {[
-              { title: "Perusahaan", links: ["Tentang Kami", "Karir", "Blog", "Press Kit"] },
-              { title: "Bantuan", links: ["FAQ", "Panduan", "Kontak", "WhatsApp Support"] },
-              { title: "Legal", links: ["Kebijakan Privasi", "Syarat & Ketentuan", "Cookie Policy"] },
-            ].map(({ title, links }) => (
-              <div key={title}>
-                <h4 className="font-semibold text-sm mb-4">{title}</h4>
-                <ul className="space-y-2.5">
-                  {links.map((link) => (
-                    <li key={link}><button className="text-sm text-background/55 hover:text-background transition-colors">{link}</button></li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+
+            {/* Perusahaan */}
+            <div>
+              <h4 className="font-semibold text-sm mb-4">Perusahaan</h4>
+              <ul className="space-y-2.5">
+                <li><button onClick={() => setPage("about")} className="text-sm text-background/55 hover:text-background transition-colors">Tentang Kami</button></li>
+                <li><button onClick={() => setPage("about")} className="text-sm text-background/55 hover:text-background transition-colors">Karir</button></li>
+                <li><button onClick={() => setPage("faq")} className="text-sm text-background/55 hover:text-background transition-colors">Blog</button></li>
+                <li><button className="text-sm text-background/55 hover:text-background transition-colors">Press Kit</button></li>
+              </ul>
+            </div>
+
+            {/* Bantuan */}
+            <div>
+              <h4 className="font-semibold text-sm mb-4">Bantuan</h4>
+              <ul className="space-y-2.5">
+                <li><button onClick={() => setPage("faq")} className="text-sm text-background/55 hover:text-background transition-colors">FAQ</button></li>
+                <li><button className="text-sm text-background/55 hover:text-background transition-colors">Panduan</button></li>
+                <li><button onClick={() => setPage("contact")} className="text-sm text-background/55 hover:text-background transition-colors">Kontak</button></li>
+                <li><button className="text-sm text-background/55 hover:text-background transition-colors">WhatsApp Support</button></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-semibold text-sm mb-4">Legal</h4>
+              <ul className="space-y-2.5">
+                <li><button onClick={() => setPage("privacy")} className="text-sm text-background/55 hover:text-background transition-colors">Kebijakan Privasi</button></li>
+                <li><button onClick={() => setPage("terms")} className="text-sm text-background/55 hover:text-background transition-colors">Syarat & Ketentuan</button></li>
+                <li><button className="text-sm text-background/55 hover:text-background transition-colors">Cookie Policy</button></li>
+              </ul>
+            </div>
           </div>
+
+          {/* Bottom Bar */}
           <div className="border-t border-background/10 pt-8 flex flex-col sm:flex-row justify-between items-center gap-3">
             <p className="text-xs text-background/40">© 2025 Invito. Hak cipta dilindungi undang-undang.</p>
             <p className="text-xs text-background/40">Dibuat dengan ❤️ di Indonesia</p>
@@ -748,7 +776,7 @@ function AuthPage({ setPage, initialTab }: { setPage: (p: Page) => void; initial
             <button onClick={() => setTab("register")} className={`flex-1 py-2.5 text-sm rounded-lg transition-all ${tab === "register" ? "bg-card shadow-sm font-semibold" : "text-muted-foreground"}`}>Daftar</button>
           </div>
           <button className="w-full flex items-center justify-center gap-3 py-3.5 border border-border rounded-xl mb-5 hover:bg-muted transition-colors text-sm font-medium">
-            <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
             Lanjutkan dengan Google
           </button>
           <div className="flex items-center gap-3 mb-5"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted-foreground">atau</span><div className="flex-1 h-px bg-border" /></div>
@@ -1037,7 +1065,7 @@ function EditorPage({ setPage }: { setPage: (p: Page) => void }) {
               <div className="space-y-1.5">
                 {PAGES_LIST.map((pg, i) => (
                   <div key={pg} onClick={() => setActiveSection(pg)} className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${activeSection === pg ? "bg-primary/10 border border-primary/25" : "border border-transparent hover:bg-muted"}`}>
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-semibold flex-shrink-0 ${activeSection === pg ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{i+1}</div>
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-semibold flex-shrink-0 ${activeSection === pg ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{i + 1}</div>
                     <span className="text-xs font-medium">{pg}</span>
                     {activeSection === pg && <Check className="w-3 h-3 text-primary ml-auto flex-shrink-0" />}
                   </div>
@@ -1108,7 +1136,7 @@ function EditorPage({ setPage }: { setPage: (p: Page) => void }) {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap justify-center">
-              {PAGES_LIST.slice(0,5).map(s => (
+              {PAGES_LIST.slice(0, 5).map(s => (
                 <button key={s} onClick={() => setActiveSection(s)} className={`px-3 py-1 text-[11px] rounded-full transition-all ${activeSection === s ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:border-primary"}`}>{s}</button>
               ))}
             </div>
@@ -1202,7 +1230,7 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{p.subtitle}</p>
                       <div className="flex flex-wrap gap-1">
-                        {p.features.slice(0,3).map((f, i) => <span key={i} className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{f}</span>)}
+                        {p.features.slice(0, 3).map((f, i) => <span key={i} className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{f}</span>)}
                         {p.features.length > 3 && <span className="text-[10px] text-muted-foreground">+{p.features.length - 3} lainnya</span>}
                       </div>
                     </div>
@@ -1366,12 +1394,12 @@ function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
                 <div className="mt-5 p-4 bg-secondary rounded-xl border border-border">
                   <p className="text-xs font-semibold mb-2">Cara Pembayaran {group.label}:</p>
                   <ol className="space-y-1.5">
-                    {activeGroup === "va" && ["Salin nomor Virtual Account yang diberikan", "Buka aplikasi mobile banking atau ATM", "Pilih menu Transfer ke Virtual Account", "Masukkan nomor VA dan konfirmasi pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i+1}.</span>{s}</li>)}
-                    {activeGroup === "ewallet" && ["Tap tombol 'Bayar Sekarang'", "Anda akan diarahkan ke aplikasi e-wallet", "Konfirmasi pembayaran di aplikasi e-wallet", "Kembali ke halaman ini setelah selesai"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i+1}.</span>{s}</li>)}
-                    {activeGroup === "qris" && ["Tap tombol 'Bayar Sekarang'", "QR Code akan ditampilkan di layar", "Buka aplikasi e-wallet atau bank Anda", "Scan QR Code dan konfirmasi pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i+1}.</span>{s}</li>)}
-                    {activeGroup === "card" && ["Masukkan nomor kartu kredit/debit Anda", "Masukkan tanggal kadaluarsa dan CVV", "Verifikasi dengan OTP yang dikirim ke HP", "Pembayaran akan diproses secara otomatis"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i+1}.</span>{s}</li>)}
-                    {activeGroup === "retail" && ["Kunjungi gerai Alfamart atau Indomaret terdekat", "Tunjukkan kode pembayaran ke kasir", "Bayar sesuai jumlah yang tertera", "Simpan struk sebagai bukti pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i+1}.</span>{s}</li>)}
-                    {activeGroup === "paylater" && ["Pilih metode cicilan yang diinginkan", "Daftarkan akun PayLater jika belum punya", "Verifikasi identitas dan limit kredit", "Konfirmasi cicilan dan proses pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i+1}.</span>{s}</li>)}
+                    {activeGroup === "va" && ["Salin nomor Virtual Account yang diberikan", "Buka aplikasi mobile banking atau ATM", "Pilih menu Transfer ke Virtual Account", "Masukkan nomor VA dan konfirmasi pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
+                    {activeGroup === "ewallet" && ["Tap tombol 'Bayar Sekarang'", "Anda akan diarahkan ke aplikasi e-wallet", "Konfirmasi pembayaran di aplikasi e-wallet", "Kembali ke halaman ini setelah selesai"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
+                    {activeGroup === "qris" && ["Tap tombol 'Bayar Sekarang'", "QR Code akan ditampilkan di layar", "Buka aplikasi e-wallet atau bank Anda", "Scan QR Code dan konfirmasi pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
+                    {activeGroup === "card" && ["Masukkan nomor kartu kredit/debit Anda", "Masukkan tanggal kadaluarsa dan CVV", "Verifikasi dengan OTP yang dikirim ke HP", "Pembayaran akan diproses secara otomatis"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
+                    {activeGroup === "retail" && ["Kunjungi gerai Alfamart atau Indomaret terdekat", "Tunjukkan kode pembayaran ke kasir", "Bayar sesuai jumlah yang tertera", "Simpan struk sebagai bukti pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
+                    {activeGroup === "paylater" && ["Pilih metode cicilan yang diinginkan", "Daftarkan akun PayLater jika belum punya", "Verifikasi identitas dan limit kredit", "Konfirmasi cicilan dan proses pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
                   </ol>
                 </div>
               </div>
@@ -1489,7 +1517,7 @@ function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
             <div className="text-xs space-y-1.5 text-muted-foreground">
               <p className="font-medium text-foreground mb-2">Cara Bayar:</p>
               {["Buka aplikasi BCA Mobile atau m-BCA", "Pilih m-Transfer → BCA Virtual Account", "Masukkan nomor VA di atas", "Konfirmasi pembayaran"].map((s, i) => (
-                <div key={i} className="flex gap-2"><span className="text-primary font-medium w-4 flex-shrink-0">{i+1}.</span>{s}</div>
+                <div key={i} className="flex gap-2"><span className="text-primary font-medium w-4 flex-shrink-0">{i + 1}.</span>{s}</div>
               ))}
             </div>
           </div>
@@ -1531,7 +1559,7 @@ function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
             <div className="text-sm space-y-2 text-muted-foreground">
               <p className="font-medium text-foreground text-xs mb-3">Cara Bayar QRIS:</p>
               {["Buka aplikasi e-wallet pilihan Anda", "Pilih fitur Scan QR / QRIS", "Arahkan kamera ke QR Code", "Konfirmasi jumlah dan selesaikan pembayaran"].map((s, i) => (
-                <div key={i} className="flex gap-2 text-xs"><span className="text-primary font-medium w-4 flex-shrink-0">{i+1}.</span>{s}</div>
+                <div key={i} className="flex gap-2 text-xs"><span className="text-primary font-medium w-4 flex-shrink-0">{i + 1}.</span>{s}</div>
               ))}
             </div>
           </div>
@@ -1698,21 +1726,160 @@ function PaymentFailedPage({ setPage }: { setPage: (p: Page) => void }) {
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 
+// ─── HALAMAN TAMBAHAN ─────────────────────────────────────────────────────────
+
+function TemplatesPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-6xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-4 text-center">Pilihan Tema Kami</h1>
+        <p className="text-muted-foreground mb-12 text-center">Ratusan tema elegan siap digunakan.</p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {["Elegant", "Floral", "Minimalist", "Modern", "Traditional", "Luxury"].map((t, i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border p-4">
+              <div className="h-48 bg-secondary rounded-lg mb-4" />
+              <h3 className="font-semibold mb-2">{t}</h3>
+              <button onClick={() => setPage("checkout")} className="w-full py-2 bg-primary text-primary-foreground rounded-full text-sm">Gunakan</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FeaturesPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-4 text-center">Fitur Lengkap</h1>
+        <div className="grid sm:grid-cols-2 gap-4 mt-12">
+          {["Custom Domain", "RSVP & Ucapan", "Amplop Digital", "Galeri Foto", "Musik Latar", "Google Maps", "QR Code Check-In", "Live Streaming"].map((f, i) => (
+            <div key={i} className="p-4 bg-card border border-border rounded-xl">
+              <h3 className="font-semibold">{f}</h3>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-4">Pilih Paket Anda</h1>
+        <p className="text-muted-foreground mb-8">Lihat detail harga dan fitur lengkap di halaman checkout.</p>
+        <button onClick={() => setPage("checkout")} className="px-6 py-3 bg-primary text-primary-foreground rounded-full">Lihat Paket</button>
+      </div>
+    </div>
+  )
+}
+
+function AboutPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-3xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-6">Tentang Kami</h1>
+        <p className="text-muted-foreground leading-relaxed">Invito adalah platform undangan digital pernikahan #1 di Indonesia. Kami membantu ribuan pasangan mewujudkan undangan impian mereka dengan mudah, cepat, dan elegan.</p>
+      </div>
+    </div>
+  )
+}
+
+function FAQPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-3xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-6">Pertanyaan Umum</h1>
+        <div className="space-y-4">
+          <div className="p-4 bg-card rounded-xl">
+            <h3 className="font-semibold mb-2">Berapa lama proses pembuatan?</h3>
+            <p className="text-sm text-muted-foreground">Hanya butuh 30 menit!</p>
+          </div>
+          <div className="p-4 bg-card rounded-xl">
+            <h3 className="font-semibold mb-2">Apakah bisa diedit setelah diterbitkan?</h3>
+            <p className="text-sm text-muted-foreground">Ya, Anda bisa mengedit kapan saja.</p>
+          </div>
+          <div className="p-4 bg-card rounded-xl">
+            <h3 className="font-semibold mb-2">Bagaimana cara membagikan undangan?</h3>
+            <p className="text-sm text-muted-foreground">Cukup copy link dan bagikan via WhatsApp atau media sosial.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ContactPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-3xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-6">Hubungi Kami</h1>
+        <p className="text-muted-foreground mb-2">Email: support@invito.id</p>
+        <p className="text-muted-foreground mb-2">WhatsApp: 0812-3456-7890</p>
+        <p className="text-muted-foreground">Alamat: Jakarta, Indonesia</p>
+      </div>
+    </div>
+  )
+}
+
+function TermsPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-3xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-6">Syarat & Ketentuan</h1>
+        <p className="text-muted-foreground leading-relaxed">Dengan menggunakan Invito, Anda menyetujui syarat dan ketentuan yang berlaku. Pembayaran bersifat non-refundable setelah undangan diterbitkan.</p>
+      </div>
+    </div>
+  )
+}
+
+function PrivacyPage({ setPage }: { setPage: (p: Page) => void }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-3xl mx-auto px-6 py-20">
+        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
+        <h1 className="font-serif text-4xl font-semibold mb-6">Kebijakan Privasi</h1>
+        <p className="text-muted-foreground leading-relaxed">Privasi Anda sangat penting bagi kami. Kami tidak akan membagikan data pribadi Anda ke pihak ketiga tanpa izin.</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
+
 export default function App() {
   const [page, setPage] = useState<Page>("landing")
   const [authTab, setAuthTab] = useState<AuthTab>("login")
 
   const render = () => {
     switch (page) {
-      case "login":           return <AuthPage setPage={setPage} initialTab={authTab} />
-      case "dashboard":       return <DashboardPage setPage={setPage} />
-      case "editor":          return <EditorPage setPage={setPage} />
-      case "checkout":        return <CheckoutPage setPage={setPage} />
-      case "payment-method":  return <PaymentMethodPage setPage={setPage} />
+      case "login": return <AuthPage setPage={setPage} initialTab={authTab} />
+      case "dashboard": return <DashboardPage setPage={setPage} />
+      case "editor": return <EditorPage setPage={setPage} />
+      case "checkout": return <CheckoutPage setPage={setPage} />
+      case "payment-method": return <PaymentMethodPage setPage={setPage} />
       case "payment-waiting": return <PaymentWaitingPage setPage={setPage} />
       case "payment-success": return <PaymentSuccessPage setPage={setPage} />
-      case "payment-failed":  return <PaymentFailedPage setPage={setPage} />
-      default:                return <LandingPage setPage={setPage} setAuthTab={setAuthTab} />
+      case "payment-failed": return <PaymentFailedPage setPage={setPage} />
+      case "templates": return <TemplatesPage setPage={setPage} />
+      case "pricing": return <PricingPage setPage={setPage} />
+      case "features": return <FeaturesPage setPage={setPage} />
+      case "about": return <AboutPage setPage={setPage} />
+      case "faq": return <FAQPage setPage={setPage} />
+      case "contact": return <ContactPage setPage={setPage} />
+      case "terms": return <TermsPage setPage={setPage} />
+      case "privacy": return <PrivacyPage setPage={setPage} />
+      default: return <LandingPage setPage={setPage} setAuthTab={setAuthTab} />
     }
   }
 
