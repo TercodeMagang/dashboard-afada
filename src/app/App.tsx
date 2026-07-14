@@ -1,5 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { motion } from "motion/react"
 import {
   Heart, Menu, X, Smartphone, Globe, Music, Users, MapPin,
@@ -15,9 +14,9 @@ import {
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { Toaster, toast } from "sonner"
 
+// ─── TYPE DEFINITIONS ─────────────────────────────────────────────────────────
+
 type Page =
-  | "landing"
-  | "login"
   | "dashboard"
   | "editor"
   | "checkout"
@@ -25,100 +24,12 @@ type Page =
   | "payment-waiting"
   | "payment-success"
   | "payment-failed"
-  | "templates"
-  | "pricing"
-  | "features"
-  | "about"
-  | "faq"
-  | "contact"
-  | "terms"
-  | "privacy"
+  | "login"
+  | "register"
+
 type AuthTab = "login" | "register"
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
-
-const WHY_US = [
-  { icon: Smartphone, title: "Mudah Digunakan", desc: "Buat undangan dalam hitungan menit, tanpa keahlian desain apapun" },
-  { icon: Edit3, title: "Edit Lewat HP", desc: "Akses dan edit undangan kapan saja dari perangkat apapun" },
-  { icon: Zap, title: "Proses Cepat", desc: "Undangan siap dibagikan hanya dalam waktu singkat" },
-  { icon: Sparkles, title: "Tampilan Elegan", desc: "Desain premium yang memukau setiap tamu undangan Anda" },
-  { icon: Gift, title: "Harga Terjangkau", desc: "Paket lengkap dengan harga yang ramah di kantong" },
-  { icon: Layers, title: "Banyak Pilihan Tema", desc: "Ratusan tema siap pakai untuk setiap selera dan konsep" },
-  { icon: Headphones, title: "Support 24/7", desc: "Tim kami selalu siap membantu kapanpun Anda butuhkan" },
-]
-
-const FEATURES = [
-  { icon: Globe, label: "Custom Domain" },
-  { icon: Users, label: "Custom Nama Tamu" },
-  { icon: Music, label: "Custom Musik Latar" },
-  { icon: Palette, label: "Tema & Custom Penuh" },
-  { icon: MessageCircle, label: "Form RSVP & Ucapan" },
-  { icon: Gift, label: "Amplop Digital" },
-  { icon: Clock, label: "Hitung Mundur Acara" },
-  { icon: MapPin, label: "Google Maps" },
-  { icon: Camera, label: "Galeri Foto & Video" },
-  { icon: Monitor, label: "Live Streaming" },
-  { icon: QrCode, label: "QR Code Check-In" },
-  { icon: Users, label: "Layar Sapa & Counter" },
-  { icon: Smartphone, label: "Edit via HP" },
-  { icon: Plus, label: "Tambah/Kurangi Halaman" },
-  { icon: Layers, label: "Atur Urutan Halaman" },
-  { icon: Layout, label: "Beragam Layout" },
-  { icon: Image, label: "Custom Background" },
-  { icon: Palette, label: "Custom Warna" },
-  { icon: Type, label: "Custom Font" },
-  { icon: Edit3, label: "Custom Ukuran Font" },
-]
-
-const THEMES = [
-  { name: "Elegant", img: "1519225421980-715cb0215aed", badge: "Populer" },
-  { name: "Floral", img: "1550005809-91ad75fb315f", badge: "" },
-  { name: "Minimalist", img: "1464366400600-7168b8af9bc3", badge: "Baru" },
-  { name: "Modern", img: "1469371670807-013ccf25f16a", badge: "" },
-  { name: "Traditional", img: "1583939003579-730e3918a45a", badge: "" },
-  { name: "Luxury", img: "1519741497674-611481863552", badge: "Premium" },
-]
-
-const TESTIMONIALS = [
-  {
-    name: "Anisa & Raka Pratama",
-    avatar: "1438761681033-6461ffad8d80",
-    rating: 5,
-    text: "Undangan digital kami begitu cantik dan mudah dibagikan ke seluruh keluarga. Tamu sangat terkesan dengan tampilannya!",
-    date: "Menikah 12 Januari 2025",
-  },
-  {
-    name: "Putri & Dimas Santoso",
-    avatar: "1494790108755-2616b612b977",
-    rating: 5,
-    text: "Proses pembuatannya sangat cepat, hanya 30 menit sudah jadi. Fitur RSVP-nya membantu kami mengelola daftar tamu dengan efisien.",
-    date: "Menikah 8 Maret 2025",
-  },
-  {
-    name: "Sari & Budi Hartono",
-    avatar: "1507003211169-0a1dd7228f2d",
-    rating: 5,
-    text: "Harga sangat terjangkau untuk kualitas yang luar biasa. Amplop digital-nya memudahkan tamu memberikan hadiah secara online.",
-    date: "Menikah 22 Februari 2025",
-  },
-]
-
-const STEPS = [
-  { num: "01", title: "Daftar atau Login", desc: "Buat akun gratis dan mulai perjalanan undangan impian Anda", icon: User },
-  { num: "02", title: "Pilih Template", desc: "Pilih dari ratusan tema elegan yang sesuai selera Anda", icon: Layout },
-  { num: "03", title: "Edit Undangan", desc: "Kustomisasi setiap detail dengan editor yang mudah digunakan", icon: Edit3 },
-  { num: "04", title: "Bagikan ke Tamu", desc: "Kirim link undangan via WhatsApp, Instagram, atau media sosial", icon: Share2 },
-]
-
-const CHART_DATA = [
-  { day: "Sen", views: 120 },
-  { day: "Sel", views: 185 },
-  { day: "Rab", views: 148 },
-  { day: "Kam", views: 220 },
-  { day: "Jum", views: 390 },
-  { day: "Sab", views: 530 },
-  { day: "Min", views: 447 },
-]
+// ─── DATA CONSTANTS ──────────────────────────────────────────────────────────
 
 const SIDEBAR_NAV = [
   { icon: Home, label: "Dashboard" },
@@ -145,7 +56,15 @@ const EDITOR_TABS = [
 
 const PAGES_LIST = ["Opening", "Mempelai", "Akad", "Resepsi", "Galeri", "RSVP", "Ucapan", "Penutup"]
 
-// ─── PAYMENT DATA ─────────────────────────────────────────────────────────────
+const CHART_DATA = [
+  { day: "Sen", views: 120 },
+  { day: "Sel", views: 185 },
+  { day: "Rab", views: 148 },
+  { day: "Kam", views: 220 },
+  { day: "Jum", views: 390 },
+  { day: "Sab", views: 530 },
+  { day: "Min", views: 447 },
+]
 
 const PACKAGES = [
   {
@@ -180,73 +99,6 @@ const PACKAGES = [
   },
 ]
 
-type MethodItem = { code: string; name: string; fee: string; badge?: string; bg: string; fg: string }
-type MethodGroup = { id: string; label: string; icon: React.ElementType; items: MethodItem[] }
-
-const PAYMENT_GROUPS: MethodGroup[] = [
-  {
-    id: "va",
-    label: "Virtual Account",
-    icon: Building2,
-    items: [
-      { code: "BCA", name: "BCA Virtual Account", fee: "Gratis", bg: "#003D6E", fg: "#FFFFFF" },
-      { code: "BNI", name: "BNI Virtual Account", fee: "Gratis", bg: "#E65C00", fg: "#FFFFFF" },
-      { code: "BRI", name: "BRI Virtual Account", fee: "Gratis", bg: "#003F87", fg: "#FFFFFF" },
-      { code: "MANDIRI", name: "Mandiri Virtual Account", fee: "Gratis", bg: "#1A3A6B", fg: "#F5C842" },
-      { code: "PERMATA", name: "Permata Virtual Account", fee: "Gratis", bg: "#6B1740", fg: "#FFFFFF" },
-      { code: "BSI", name: "BSI Virtual Account", fee: "Gratis", bg: "#00703C", fg: "#FFFFFF" },
-    ],
-  },
-  {
-    id: "ewallet",
-    label: "E-Wallet",
-    icon: Wallet,
-    items: [
-      { code: "GOPAY", name: "GoPay", fee: "Gratis", badge: "Populer", bg: "#00AED6", fg: "#FFFFFF" },
-      { code: "OVO", name: "OVO", fee: "Gratis", bg: "#4C3494", fg: "#FFFFFF" },
-      { code: "DANA", name: "DANA", fee: "Gratis", bg: "#118EEA", fg: "#FFFFFF" },
-      { code: "SHOPEEPAY", name: "ShopeePay", fee: "Gratis", bg: "#EE4D2D", fg: "#FFFFFF" },
-      { code: "LINKAJA", name: "LinkAja", fee: "Gratis", bg: "#E2173F", fg: "#FFFFFF" },
-    ],
-  },
-  {
-    id: "qris",
-    label: "QRIS",
-    icon: QrCode,
-    items: [
-      { code: "QRIS", name: "QRIS", fee: "Gratis", badge: "Semua E-Wallet", bg: "#CC0000", fg: "#FFFFFF" },
-    ],
-  },
-  {
-    id: "card",
-    label: "Kartu Kredit",
-    icon: CreditCard,
-    items: [
-      { code: "VISA", name: "Visa", fee: "2,9%", bg: "#1A1F71", fg: "#FFFFFF" },
-      { code: "MASTERCARD", name: "Mastercard", fee: "2,9%", bg: "#EB001B", fg: "#FFFFFF" },
-      { code: "JCB", name: "JCB", fee: "2,9%", bg: "#003087", fg: "#FFFFFF" },
-    ],
-  },
-  {
-    id: "retail",
-    label: "Gerai",
-    icon: Store,
-    items: [
-      { code: "ALFAMART", name: "Alfamart", fee: "Rp 2.500", bg: "#E31E24", fg: "#FFFFFF" },
-      { code: "INDOMARET", name: "Indomaret", fee: "Rp 2.500", bg: "#003087", fg: "#FFFFFF" },
-    ],
-  },
-  {
-    id: "paylater",
-    label: "PayLater",
-    icon: Receipt,
-    items: [
-      { code: "KREDIVO", name: "Kredivo", fee: "0% s/d 3 bln", bg: "#E31E24", fg: "#FFFFFF" },
-      { code: "AKULAKU", name: "Akulaku", fee: "0% s/d 3 bln", bg: "#0091EA", fg: "#FFFFFF" },
-    ],
-  },
-]
-
 const MOCK_TRANSACTIONS = [
   { id: "INV-20250112-001", date: "12 Jan 2025", package: "Premium", customer: "Anisa & Raka", method: "BCA Virtual Account", amount: 349000, status: "Paid" },
   { id: "INV-20250110-002", date: "10 Jan 2025", package: "Standard", customer: "Dewi & Fandi", method: "GoPay", amount: 199000, status: "Paid" },
@@ -260,69 +112,6 @@ const MOCK_TRANSACTIONS = [
 const fmt = (n: number) => "Rp " + n.toLocaleString("id-ID")
 
 // ─── UTILITY COMPONENTS ───────────────────────────────────────────────────────
-
-function QRCodeDisplay() {
-  const size = 23
-  const pattern = Array.from({ length: size * size }, (_, i) => {
-    const r = Math.floor(i / size)
-    const c = i % size
-    const inTopLeft = r < 7 && c < 7
-    const inTopRight = r < 7 && c >= size - 7
-    const inBotLeft = r >= size - 7 && c < 7
-    if (inTopLeft || inTopRight || inBotLeft) {
-      const lr = inTopLeft ? r : inBotLeft ? r - (size - 7) : r
-      const lc = inTopRight ? c - (size - 7) : c
-      return lr === 0 || lr === 6 || lc === 0 || lc === 6 || (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4)
-    }
-    if (r === 6 || c === 6) return (r + c) % 2 === 0
-    return ((r * 3 + c * 7 + r * c * 2) % 4) < 2
-  })
-  return (
-    <div className="p-4 bg-white rounded-2xl border border-border shadow-sm inline-block">
-      <div
-        style={{ display: "grid", gridTemplateColumns: `repeat(${size}, 1fr)`, width: 184, height: 184, gap: 0 }}
-      >
-        {pattern.map((on, i) => (
-          <div key={i} style={{ backgroundColor: on ? "#2A1F1A" : "white" }} />
-        ))}
-      </div>
-      <p className="text-center text-[9px] text-muted-foreground mt-2.5 font-mono tracking-widest uppercase">
-        Scan untuk membayar
-      </p>
-    </div>
-  )
-}
-
-function CountdownTimer({ initialSeconds }: { initialSeconds: number }) {
-  const [left, setLeft] = useState(initialSeconds)
-  useEffect(() => {
-    const t = setInterval(() => setLeft((p) => Math.max(0, p - 1)), 1000)
-    return () => clearInterval(t)
-  }, [])
-  const h = Math.floor(left / 3600)
-  const m = Math.floor((left % 3600) / 60)
-  const s = left % 60
-  const blocks = [
-    { v: h, l: "Jam" },
-    { v: m, l: "Menit" },
-    { v: s, l: "Detik" },
-  ]
-  return (
-    <div className="flex items-center gap-2">
-      {blocks.map(({ v, l }, i) => (
-        <div key={l} className="flex items-center gap-2">
-          <div className="flex flex-col items-center">
-            <div className="w-14 h-14 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center text-xl font-mono font-bold text-primary">
-              {String(v).padStart(2, "0")}
-            </div>
-            <span className="text-[10px] text-muted-foreground mt-1">{l}</span>
-          </div>
-          {i < 2 && <span className="text-primary font-bold text-xl mb-4">:</span>}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, string> = {
@@ -356,382 +145,20 @@ function Navbar({ setPage, setAuthTab }: { setPage: (p: Page) => void; setAuthTa
   return (
     <nav className="fixed top-0 inset-x-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <button onClick={() => setPage("landing")} className="flex items-center gap-2 group">
+        <button onClick={() => setPage("dashboard")} className="flex items-center gap-2 group">
           <Heart className="w-5 h-5 text-primary fill-primary/20 group-hover:fill-primary/50 transition-all" />
           <span className="font-serif text-xl font-semibold italic">Invito</span>
         </button>
-        <div className="hidden md:flex items-center gap-8">
-          <button onClick={() => setPage("features")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Fitur</button>
-          <button onClick={() => setPage("templates")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Tema</button>
-          <button onClick={() => setPage("pricing")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">Harga</button>
-          <button onClick={() => setPage("faq")} className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</button>
-        </div>
         <div className="hidden md:flex items-center gap-3">
           <button onClick={() => { setAuthTab("login"); setPage("login") }} className="px-4 py-2 text-sm text-foreground hover:text-primary transition-colors">
-            Masuk
-          </button>
-          <button onClick={() => setPage("checkout")} className="px-5 py-2.5 text-sm bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-all hover:shadow-[0_4px_16px_rgba(196,149,74,0.4)]">
-            Mulai Gratis
+            Keluar
           </button>
         </div>
         <button onClick={() => setOpen(!open)} className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors">
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
-      {open && (
-        <div className="md:hidden bg-background border-t border-border px-6 py-4">
-          {["Fitur", "Tema", "Harga", "Blog"].map((item) => (
-            <div key={item} className="py-3 text-sm border-b border-border/40">{item}</div>
-          ))}
-          <div className="pt-4 flex flex-col gap-2">
-            <button onClick={() => { setAuthTab("login"); setPage("login"); setOpen(false) }} className="w-full py-3 text-sm border border-border rounded-full">Masuk</button>
-            <button onClick={() => { setAuthTab("register"); setPage("login"); setOpen(false) }} className="w-full py-3 text-sm bg-primary text-primary-foreground rounded-full">Mulai Gratis</button>
-          </div>
-        </div>
-      )}
     </nav>
-  )
-}
-
-// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
-
-function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setAuthTab: (t: AuthTab) => void }) {
-  return (
-    <div className="min-h-screen bg-background font-sans">
-      <Navbar setPage={setPage} setAuthTab={setAuthTab} />
-
-      {/* HERO */}
-      <section className="pt-28 pb-24 px-6 max-w-6xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 rounded-full text-primary text-xs tracking-wide mb-7">
-              <Sparkles className="w-3 h-3" />
-              Platform Undangan Digital #1 Indonesia
-            </div>
-            <h1 className="font-serif text-5xl lg:text-[3.5rem] font-semibold leading-[1.15] mb-6">
-              Buat Undangan<br />Pernikahan{" "}
-              <span className="text-primary italic">Impianmu</span>
-            </h1>
-            <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-sm">
-              Undangan digital elegan yang bisa dibagikan via WhatsApp. Tanpa keahlian desain, siap dalam hitungan menit.
-            </p>
-            <div className="flex flex-wrap gap-3 mb-10">
-              <button onClick={() => setPage("checkout")} className="px-7 py-3.5 bg-primary text-primary-foreground rounded-full font-medium hover:bg-primary/90 transition-all hover:shadow-[0_8px_28px_rgba(196,149,74,0.38)] flex items-center gap-2 text-sm">
-                Mulai Buat Undangan <ArrowRight className="w-4 h-4" />
-              </button>
-              <button onClick={() => setPage("templates")} className="px-7 py-3.5 border border-border rounded-full font-medium hover:border-primary/60 hover:text-primary transition-all flex items-center gap-2 text-sm">
-                <Play className="w-3.5 h-3.5 fill-current" /> Lihat Template
-              </button>
-            </div>
-            <div className="flex items-center gap-5">
-              <div className="flex -space-x-2.5">
-                {["1438761681033-6461ffad8d80", "1494790108755-2616b612b977", "1507003211169-0a1dd7228f2d", "1534528741775-53994a69daeb"].map((id, i) => (
-                  <img key={i} src={`https://images.unsplash.com/photo-${id}?w=48&h=48&fit=crop&auto=format`} className="w-9 h-9 rounded-full border-2 border-background object-cover" alt="pengguna" />
-                ))}
-              </div>
-              <div>
-                <div className="flex text-yellow-400 text-sm mb-0.5">{"★★★★★"}</div>
-                <p className="text-xs text-muted-foreground">10.000+ pasangan telah memilih kami</p>
-              </div>
-            </div>
-          </motion.div>
-          <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative flex justify-center lg:justify-end">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/15 blur-3xl rounded-full scale-75 translate-y-10" />
-              <div className="relative w-64 h-[530px] bg-foreground rounded-[3rem] p-3 shadow-2xl">
-                <div className="w-full h-full bg-background rounded-[2.4rem] overflow-hidden">
-                  <div className="px-6 pt-4 pb-2 flex justify-between items-center">
-                    <span className="text-[10px] text-foreground/50">9:41</span>
-                    <div className="w-20 h-4 bg-foreground rounded-full opacity-80" />
-                    <div className="flex gap-1">{[0, 1, 2].map(i => <div key={i} className="w-1 h-1 bg-foreground/30 rounded-full" />)}</div>
-                  </div>
-                  <div className="mx-3 rounded-2xl overflow-hidden shadow-md">
-                    <img src="https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=320&h=200&fit=crop&auto=format" alt="invitation preview" className="w-full h-44 object-cover" />
-                    <div className="bg-white px-5 py-4">
-                      <p className="text-center text-[9px] tracking-[0.2em] uppercase text-muted-foreground mb-1">The Wedding of</p>
-                      <h3 className="font-serif text-center text-lg font-semibold">Anisa & Raka</h3>
-                      <div className="my-2.5 h-px bg-primary/25 mx-4" />
-                      <p className="text-center text-[10px] text-muted-foreground">Sabtu, 12 Januari 2025</p>
-                      <p className="text-center text-[10px] text-muted-foreground mb-3.5">Ballroom Hotel Mulia, Jakarta</p>
-                      <button className="w-full py-2 bg-primary text-white text-[10px] rounded-full">Buka Undangan</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <motion.div animate={{ y: [0, -9, 0] }} transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }} className="absolute -left-14 top-24 bg-card rounded-2xl px-3.5 py-2.5 shadow-lg border border-border flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0"><Check className="w-4 h-4 text-green-500" /></div>
-                <div><p className="text-xs font-semibold leading-tight">RSVP Diterima</p><p className="text-[10px] text-muted-foreground">+48 tamu baru</p></div>
-              </motion.div>
-              <motion.div animate={{ y: [0, 9, 0] }} transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }} className="absolute -right-14 bottom-32 bg-card rounded-2xl px-3.5 py-2.5 shadow-lg border border-border flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0"><Gift className="w-4 h-4 text-primary" /></div>
-                <div><p className="text-xs font-semibold leading-tight">Amplop Digital</p><p className="text-[10px] text-muted-foreground">Rp 12.450.000</p></div>
-              </motion.div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* WHY US */}
-      <section className="py-24 px-6 bg-secondary">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Keunggulan Kami</p>
-            <h2 className="font-serif text-4xl font-semibold">Mengapa Memilih Invito?</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {WHY_US.map(({ icon: Icon, title, desc }, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }} className="bg-card rounded-2xl p-6 border border-border hover:shadow-[0_8px_32px_rgba(196,149,74,0.1)] hover:-translate-y-1 transition-all duration-300">
-                <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center mb-4"><Icon className="w-5 h-5 text-primary" /></div>
-                <h3 className="font-semibold text-sm mb-1.5">{title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRODUCTS */}
-      <section className="py-24 px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Produk Kami</p>
-            <h2 className="font-serif text-4xl font-semibold">Pilihan Produk Undangan</h2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="relative bg-card rounded-3xl p-8 border-2 border-primary/50 hover:border-primary transition-all hover:shadow-[0_12px_48px_rgba(196,149,74,0.15)]">
-              <div className="absolute top-7 right-7 px-3 py-1 bg-primary text-primary-foreground rounded-full text-[10px] font-medium tracking-wide">TERLARIS</div>
-              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-5"><Smartphone className="w-6 h-6 text-primary" /></div>
-              <h3 className="font-serif text-2xl font-semibold mb-2">Undangan Digital</h3>
-              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Undangan interaktif modern yang mudah dibagikan ke semua tamu</p>
-              <ul className="space-y-3 mb-8">
-                {["Bisa dibagikan via WhatsApp & sosmed", "Fitur RSVP & amplop digital", "100+ tema pilihan tersedia", "Edit kapan saja dari HP", "Animasi & musik latar"].map((f, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm"><Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />{f}</li>
-                ))}
-              </ul>
-              <button onClick={() => setPage("checkout")} className="w-full py-3.5 bg-primary text-primary-foreground rounded-full text-sm hover:bg-primary/90 transition-all">Lihat Detail</button>
-            </div>
-            <div className="bg-card rounded-3xl p-8 border border-border hover:border-muted-foreground/30 transition-all hover:shadow-[0_12px_48px_rgba(0,0,0,0.07)]">
-              <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center mb-5"><FileText className="w-6 h-6 text-muted-foreground" /></div>
-              <h3 className="font-serif text-2xl font-semibold mb-2">Undangan Cetak</h3>
-              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Undangan fisik premium dengan desain yang menawan dan elegan</p>
-              <ul className="space-y-3 mb-8">
-                {["Desain premium profesional", "Beragam pilihan kertas", "Cetak sesuai jumlah tamu", "Amplop & pita hias eksklusif", "Bisa digabung dengan digital"].map((f, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm"><Check className="w-4 h-4 text-muted-foreground/60 flex-shrink-0 mt-0.5" />{f}</li>
-                ))}
-              </ul>
-              <button onClick={() => {
-                alert("Fitur Undangan Cetak akan segera hadir! Silakan pilih Undangan Digital.");
-              }} className="w-full py-3.5 border border-border rounded-full text-sm hover:border-primary hover:text-primary transition-all">Lihat Detail</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* THEMES */}
-      <section className="py-24 px-6 bg-secondary">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Koleksi Tema</p>
-            <h2 className="font-serif text-4xl font-semibold">Pilihan Tema yang Memukau</h2>
-            <p className="text-muted-foreground mt-3 text-sm max-w-sm mx-auto">Ratusan tema tersedia untuk setiap selera dan konsep pernikahan Anda</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {THEMES.map(({ name, img, badge }, i) => (
-              <motion.div key={i} initial={{ opacity: 0, scale: 0.96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.09 }} className="group bg-card rounded-2xl overflow-hidden border border-border hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300">
-                <div className="relative h-48 overflow-hidden">
-                  <img src={`https://images.unsplash.com/photo-${img}?w=600&h=400&fit=crop&auto=format`} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent" />
-                  {badge && <div className="absolute top-3 left-3 px-2.5 py-1 bg-primary text-primary-foreground rounded-full text-[10px] font-medium">{badge}</div>}
-                </div>
-                <div className="p-4 flex items-center justify-between">
-                  <div><h3 className="font-semibold text-sm">{name}</h3><p className="text-[11px] text-muted-foreground mt-0.5">24 variasi tersedia</p></div>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1.5 text-[11px] border border-border rounded-full hover:border-primary hover:text-primary transition-colors">Preview</button>
-                    <button onClick={() => setPage("checkout")} className="px-3 py-1.5 text-[11px] bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors">Gunakan</button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Fitur Lengkap</p>
-            <h2 className="font-serif text-4xl font-semibold">Semua yang Anda Butuhkan</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {FEATURES.map(({ icon: Icon, label }, i) => (
-              <motion.div key={i} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.035 }} className="flex items-center gap-3 p-4 bg-card rounded-xl border border-border hover:border-primary/35 hover:bg-primary/[0.03] transition-all group cursor-default">
-                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors"><Icon className="w-4 h-4 text-primary" /></div>
-                <span className="text-xs font-medium leading-tight">{label}</span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section className="py-24 px-6 bg-secondary">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Harga</p>
-            <h2 className="font-serif text-4xl font-semibold">Pilihan Paket yang Tepat</h2>
-            <p className="text-muted-foreground mt-3 text-sm">Mulai dari Rp 99.000 untuk undangan digital impian Anda</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {PACKAGES.map((pkg, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={`relative bg-card rounded-3xl p-7 border-2 transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(196,149,74,0.12)] ${pkg.popular ? "border-primary" : "border-border"}`}>
-                {pkg.popular && <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-primary-foreground rounded-full text-[10px] font-medium whitespace-nowrap">PALING POPULER</div>}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${pkg.popular ? "bg-primary/15" : "bg-muted"}`}>
-                  <Package className={`w-5 h-5 ${pkg.popular ? "text-primary" : "text-muted-foreground"}`} />
-                </div>
-                <h3 className="font-serif text-xl font-semibold mb-1">{pkg.name}</h3>
-                <p className="text-xs text-muted-foreground mb-4">{pkg.subtitle}</p>
-                <div className="mb-5">
-                  {pkg.originalPrice && <p className="text-xs text-muted-foreground line-through mb-0.5">{fmt(pkg.originalPrice)}</p>}
-                  <p className="text-2xl font-bold text-foreground">{fmt(pkg.price)}</p>
-                </div>
-                <ul className="space-y-2 mb-7">
-                  {pkg.features.map((f, j) => (
-                    <li key={j} className="flex items-start gap-2 text-xs">
-                      <Check className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${pkg.popular ? "text-primary" : "text-muted-foreground"}`} />{f}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={() => setPage("checkout")} className={`w-full py-3 rounded-full text-sm transition-all ${pkg.popular ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_4px_16px_rgba(196,149,74,0.35)]" : "border border-border hover:border-primary hover:text-primary"}`}>
-                  Pilih Paket {pkg.name}
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* HOW TO USE */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Cara Kerja</p>
-            <h2 className="font-serif text-4xl font-semibold">Mudah dalam 4 Langkah</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {STEPS.map(({ num, title, desc, icon: Icon }, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="flex flex-col items-center text-center">
-                <div className="relative mb-5">
-                  <div className="w-14 h-14 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-[0_4px_20px_rgba(196,149,74,0.4)]"><Icon className="w-6 h-6" /></div>
-                  <span className="absolute -top-2 -right-2 text-[10px] font-mono text-primary/50 bg-card border border-primary/20 rounded-full w-5 h-5 flex items-center justify-center">{i + 1}</span>
-                </div>
-                <h3 className="font-serif font-semibold mb-2">{title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
-      <section className="py-24 px-6 bg-secondary">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-primary text-xs tracking-[0.2em] uppercase font-medium mb-3">Testimoni</p>
-            <h2 className="font-serif text-4xl font-semibold">Kata Mereka tentang Invito</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map(({ name, avatar, rating, text, date }, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="bg-card rounded-3xl p-7 border border-border hover:shadow-[0_8px_32px_rgba(196,149,74,0.1)] transition-all">
-                <div className="flex text-yellow-400 text-sm mb-4">{"★".repeat(rating)}</div>
-                <p className="text-sm leading-relaxed text-foreground/80 mb-6 italic">&ldquo;{text}&rdquo;</p>
-                <div className="flex items-center gap-3">
-                  <img src={`https://images.unsplash.com/photo-${avatar}?w=80&h=80&fit=crop&auto=format`} alt={name} className="w-10 h-10 rounded-full object-cover" />
-                  <div><p className="text-sm font-semibold">{name}</p><p className="text-[11px] text-muted-foreground">{date}</p></div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 px-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="relative bg-gradient-to-br from-primary/8 via-secondary to-accent/20 rounded-3xl p-14 border border-primary/20 overflow-hidden text-center">
-            <div className="absolute -top-10 -right-10 w-56 h-56 bg-primary/8 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-56 h-56 bg-accent/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative z-10">
-              <Heart className="w-10 h-10 text-primary fill-primary/15 mx-auto mb-5" />
-              <h2 className="font-serif text-4xl font-semibold mb-4 leading-tight">Buat Undangan Pernikahan<br />Impianmu Sekarang</h2>
-              <p className="text-muted-foreground text-sm mb-8 max-w-sm mx-auto leading-relaxed">Bergabung dengan 10.000+ pasangan yang telah mempercayai Invito untuk hari spesial mereka.</p>
-              <div className="flex flex-wrap justify-center gap-3">
-                <button onClick={() => setPage("checkout")} className="px-8 py-3.5 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-all hover:shadow-[0_8px_28px_rgba(196,149,74,0.4)] flex items-center gap-2">
-                  Mulai Gratis <ArrowRight className="w-4 h-4" />
-                </button>
-                <button onClick={() => setPage("templates")} className="...">Lihat Semua Template</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="py-16 px-6 bg-foreground text-background">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10 mb-14">
-            {/* Brand */}
-            <div className="lg:col-span-2">
-              <div className="flex items-center gap-2 mb-5">
-                <Heart className="w-5 h-5 text-primary fill-primary/30" />
-                <span className="font-serif text-xl font-semibold italic">Invito</span>
-              </div>
-              <p className="text-sm text-background/55 leading-relaxed max-w-xs">
-                Platform undangan digital pernikahan terbaik di Indonesia. Jadikan momen spesial Anda semakin berkesan.
-              </p>
-            </div>
-
-            {/* Perusahaan */}
-            <div>
-              <h4 className="font-semibold text-sm mb-4">Perusahaan</h4>
-              <ul className="space-y-2.5">
-                <li><button onClick={() => setPage("about")} className="text-sm text-background/55 hover:text-background transition-colors">Tentang Kami</button></li>
-                <li><button onClick={() => setPage("about")} className="text-sm text-background/55 hover:text-background transition-colors">Karir</button></li>
-                <li><button onClick={() => setPage("faq")} className="text-sm text-background/55 hover:text-background transition-colors">Blog</button></li>
-                <li><button className="text-sm text-background/55 hover:text-background transition-colors">Press Kit</button></li>
-              </ul>
-            </div>
-
-            {/* Bantuan */}
-            <div>
-              <h4 className="font-semibold text-sm mb-4">Bantuan</h4>
-              <ul className="space-y-2.5">
-                <li><button onClick={() => setPage("faq")} className="text-sm text-background/55 hover:text-background transition-colors">FAQ</button></li>
-                <li><button className="text-sm text-background/55 hover:text-background transition-colors">Panduan</button></li>
-                <li><button onClick={() => setPage("contact")} className="text-sm text-background/55 hover:text-background transition-colors">Kontak</button></li>
-                <li><button className="text-sm text-background/55 hover:text-background transition-colors">WhatsApp Support</button></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="font-semibold text-sm mb-4">Legal</h4>
-              <ul className="space-y-2.5">
-                <li><button onClick={() => setPage("privacy")} className="text-sm text-background/55 hover:text-background transition-colors">Kebijakan Privasi</button></li>
-                <li><button onClick={() => setPage("terms")} className="text-sm text-background/55 hover:text-background transition-colors">Syarat & Ketentuan</button></li>
-                <li><button className="text-sm text-background/55 hover:text-background transition-colors">Cookie Policy</button></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="border-t border-background/10 pt-8 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-background/40">© 2025 Invito. Hak cipta dilindungi undang-undang.</p>
-            <p className="text-xs text-background/40">Dibuat dengan ❤️ di Indonesia</p>
-          </div>
-        </div>
-      </footer>
-    </div>
   )
 }
 
@@ -742,13 +169,14 @@ function AuthPage({ setPage, initialTab }: { setPage: (p: Page) => void; initial
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
+
   return (
     <div className="min-h-screen bg-secondary flex font-sans">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <img src="https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=900&h=1200&fit=crop&auto=format" alt="wedding" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-foreground/20 via-foreground/35 to-foreground/70" />
         <div className="relative z-10 flex flex-col p-12 text-white">
-          <button onClick={() => setPage("landing")} className="flex items-center gap-2 mb-auto">
+          <button onClick={() => window.location.href = "https://invito.id"} className="flex items-center gap-2 mb-auto">
             <Heart className="w-5 h-5 text-primary fill-primary/30" />
             <span className="font-serif text-xl font-semibold italic">Invito</span>
           </button>
@@ -763,7 +191,7 @@ function AuthPage({ setPage, initialTab }: { setPage: (p: Page) => void; initial
       </div>
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <button onClick={() => setPage("landing")} className="flex items-center gap-2 mb-8 lg:hidden">
+          <button onClick={() => window.location.href = "https://invito.id"} className="flex items-center gap-2 mb-8 lg:hidden">
             <Heart className="w-5 h-5 text-primary fill-primary/30" />
             <span className="font-serif text-xl font-semibold italic">Invito</span>
           </button>
@@ -814,7 +242,7 @@ function AuthPage({ setPage, initialTab }: { setPage: (p: Page) => void; initial
   )
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+// ─── DASHBOARD PAGE ──────────────────────────────────────────────────────────
 
 function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
   const [activeMenu, setActiveMenu] = useState("Dashboard")
@@ -831,9 +259,10 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
 
   return (
     <div className="flex h-screen bg-muted overflow-hidden font-sans">
+      {/* Sidebar */}
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
         <div className="px-5 py-5 border-b border-sidebar-border">
-          <button onClick={() => setPage("landing")} className="flex items-center gap-2">
+          <button onClick={() => window.location.href = "https://invito.id"} className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-primary fill-primary/25" />
             <span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span>
           </button>
@@ -853,7 +282,7 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
               <p className="text-[10px] text-sidebar-foreground/45 truncate">anisa@email.com</p>
             </div>
           </div>
-          <button onClick={() => setPage("landing")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs transition-colors">
+          <button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs transition-colors">
             <LogOut className="w-3.5 h-3.5" /> Keluar
           </button>
         </div>
@@ -861,6 +290,7 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
 
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-foreground/40 z-30 lg:hidden" />}
 
+      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 bg-card border-b border-border px-5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -880,7 +310,6 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
 
         <main className="flex-1 overflow-y-auto p-5">
           {activeMenu === "Transaksi" ? (
-            /* ─ TRANSACTION HISTORY ─ */
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                 <div>
@@ -931,7 +360,6 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
                   <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada transaksi ditemukan</div>
                 )}
               </div>
-              {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
                 {[
                   { label: "Total Pendapatan", value: "Rp 1.343.000", icon: TrendingUp, color: "text-green-500 bg-green-50" },
@@ -948,7 +376,6 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
               </div>
             </div>
           ) : (
-            /* ─ MAIN DASHBOARD ─ */
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                 {[
@@ -960,7 +387,7 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
                   <div key={i} className="bg-card rounded-2xl p-4 border border-border">
                     <div className="flex items-start justify-between mb-3">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colorCls}`}><Icon className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">{change}</span>
+                      <span className="text-[10px] text-green-600 bg-green-50 rounded-full">{change}</span>
                     </div>
                     <p className="text-xl font-semibold mb-0.5">{value}</p>
                     <p className="text-[11px] text-muted-foreground">{label}</p>
@@ -1077,9 +504,9 @@ function EditorPage({ setPage }: { setPage: (p: Page) => void }) {
             <div>
               <p className="text-[10px] text-muted-foreground mb-3 font-semibold uppercase tracking-widest">Pilih Tema</p>
               <div className="grid grid-cols-2 gap-2">
-                {THEMES.map(({ name, img }, i) => (
+                {["Elegant", "Floral", "Minimalist", "Modern", "Traditional", "Luxury"].map((name, i) => (
                   <button key={i} onClick={() => setSelectedTheme(i)} className={`relative rounded-xl overflow-hidden aspect-[3/4] border-2 transition-all ${selectedTheme === i ? "border-primary" : "border-transparent hover:border-primary/30"}`}>
-                    <img src={`https://images.unsplash.com/photo-${img}?w=200&h=280&fit=crop&auto=format`} alt={name} className="w-full h-full object-cover" />
+                    <div className="w-full h-full bg-secondary" />
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-foreground/60 to-transparent p-2"><p className="text-white text-[10px] font-medium">{name}</p></div>
                     {selectedTheme === i && <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
                   </button>
@@ -1119,12 +546,14 @@ function EditorPage({ setPage }: { setPage: (p: Page) => void }) {
             <div className="w-[280px] bg-foreground rounded-[2.5rem] p-3 shadow-2xl">
               <div className="w-full bg-background rounded-[2rem] overflow-hidden min-h-[560px]">
                 <div className="relative">
-                  <img src={`https://images.unsplash.com/photo-${THEMES[selectedTheme].img}?w=400&h=280&fit=crop&auto=format`} alt="wedding" className="w-full h-44 object-cover" />
+                  <div className="w-full h-44 bg-secondary flex items-center justify-center">
+                    <span className="text-muted-foreground">Theme Preview</span>
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white" />
                 </div>
                 <div className="px-6 pb-6 -mt-3 text-center">
                   <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground mb-1">The Wedding of</p>
-                  <h2 className="font-serif text-2xl font-semibold mb-1">Anisa &amp; Raka</h2>
+                  <h2 className="font-serif text-2xl font-semibold mb-1">Anisa & Raka</h2>
                   <div className="w-14 h-px bg-primary/35 mx-auto my-3" />
                   <p className="text-[10px] text-muted-foreground">Sabtu, 12 Januari 2025</p>
                   <p className="text-[10px] text-muted-foreground mb-4">Ballroom Hotel Mulia, Jakarta</p>
@@ -1165,14 +594,6 @@ function EditorPage({ setPage }: { setPage: (p: Page) => void }) {
             <label className="text-[10px] text-muted-foreground mb-2 block font-semibold uppercase tracking-wide">Ukuran Font <span className="font-normal normal-case text-foreground">28px</span></label>
             <input type="range" min="16" max="48" defaultValue="28" className="w-full accent-primary" />
           </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground mb-2 block font-semibold uppercase tracking-wide">Padding</label>
-            <div className="grid grid-cols-2 gap-2">
-              {["Top", "Right", "Bottom", "Left"].map(dir => (
-                <div key={dir}><p className="text-[9px] text-muted-foreground/70 mb-0.5">{dir}</p><input defaultValue="16" className="w-full text-xs border border-border rounded-lg px-2 py-1.5 bg-muted outline-none focus:border-primary text-center" /></div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -1188,10 +609,9 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
 
   return (
     <div className="min-h-screen bg-secondary font-sans">
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <button onClick={() => setPage("landing")} className="flex items-center gap-2">
+          <button onClick={() => setPage("dashboard")} className="flex items-center gap-2">
             <Heart className="w-4 h-4 text-primary fill-primary/20" />
             <span className="font-serif text-lg font-semibold italic">Invito</span>
           </button>
@@ -1202,7 +622,7 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
             <div className="w-8 h-px bg-border" />
             <div className="flex items-center gap-1.5"><div className="w-5 h-5 bg-muted rounded-full flex items-center justify-center text-[10px]">3</div>Konfirmasi</div>
           </div>
-          <button onClick={() => setPage("landing")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"><ChevronRight className="w-3.5 h-3.5 rotate-180" />Kembali</button>
+          <button onClick={() => setPage("dashboard")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"><ChevronRight className="w-3.5 h-3.5 rotate-180" />Kembali</button>
         </div>
       </header>
 
@@ -1214,7 +634,6 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
-            {/* Package selection */}
             <div className="bg-card rounded-2xl p-6 border border-border">
               <h2 className="font-semibold mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-primary" />Pilih Paket</h2>
               <div className="space-y-3">
@@ -1243,7 +662,6 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
               </div>
             </div>
 
-            {/* Order detail */}
             <div className="bg-card rounded-2xl p-6 border border-border">
               <h2 className="font-semibold mb-4 flex items-center gap-2"><Heart className="w-4 h-4 text-primary" />Detail Undangan</h2>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -1260,7 +678,6 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
               </div>
             </div>
 
-            {/* Pemesan */}
             <div className="bg-card rounded-2xl p-6 border border-border">
               <h2 className="font-semibold mb-4 flex items-center gap-2"><User className="w-4 h-4 text-primary" />Data Pemesan</h2>
               <div className="space-y-4">
@@ -1278,7 +695,6 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
             </div>
           </div>
 
-          {/* Order summary sidebar */}
           <div className="lg:sticky lg:top-20 lg:self-start">
             <div className="bg-card rounded-2xl p-6 border border-border">
               <h2 className="font-semibold mb-5">Ringkasan Pesanan</h2>
@@ -1328,14 +744,46 @@ function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
 function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
   const [activeGroup, setActiveGroup] = useState("va")
   const [selected, setSelected] = useState<string | null>(null)
+  const pkg = PACKAGES[1]
+
+  const PAYMENT_GROUPS = [
+    {
+      id: "va",
+      label: "Virtual Account",
+      icon: Building2,
+      items: [
+        { code: "BCA", name: "BCA Virtual Account", fee: "Gratis", bg: "#003D6E", fg: "#FFFFFF" },
+        { code: "BNI", name: "BNI Virtual Account", fee: "Gratis", bg: "#E65C00", fg: "#FFFFFF" },
+        { code: "BRI", name: "BRI Virtual Account", fee: "Gratis", bg: "#003F87", fg: "#FFFFFF" },
+      ],
+    },
+    {
+      id: "ewallet",
+      label: "E-Wallet",
+      icon: Wallet,
+      items: [
+        { code: "GOPAY", name: "GoPay", fee: "Gratis", badge: "Populer", bg: "#00AED6", fg: "#FFFFFF" },
+        { code: "OVO", name: "OVO", fee: "Gratis", bg: "#4C3494", fg: "#FFFFFF" },
+        { code: "DANA", name: "DANA", fee: "Gratis", bg: "#118EEA", fg: "#FFFFFF" },
+      ],
+    },
+    {
+      id: "qris",
+      label: "QRIS",
+      icon: QrCode,
+      items: [
+        { code: "QRIS", name: "QRIS", fee: "Gratis", badge: "Semua E-Wallet", bg: "#CC0000", fg: "#FFFFFF" },
+      ],
+    },
+  ]
+
   const group = PAYMENT_GROUPS.find(g => g.id === activeGroup)!
-  const pkg = PACKAGES[1] // standard
 
   return (
     <div className="min-h-screen bg-secondary font-sans">
       <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <button onClick={() => setPage("landing")} className="flex items-center gap-2">
+          <button onClick={() => window.location.href = "https://invito.id"} className="flex items-center gap-2">
             <Heart className="w-4 h-4 text-primary fill-primary/20" />
             <span className="font-serif text-lg font-semibold italic">Invito</span>
           </button>
@@ -1359,7 +807,6 @@ function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
-              {/* Method group tabs */}
               <div className="flex overflow-x-auto border-b border-border">
                 {PAYMENT_GROUPS.map(({ id, label, icon: Icon }) => (
                   <button key={id} onClick={() => { setActiveGroup(id); setSelected(null) }} className={`flex items-center gap-2 px-4 py-3.5 text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${activeGroup === id ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
@@ -1368,7 +815,6 @@ function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
                 ))}
               </div>
 
-              {/* Methods */}
               <div className="p-5">
                 <p className="text-xs text-muted-foreground mb-4">Pilih {group.label} yang ingin Anda gunakan:</p>
                 <div className="space-y-2.5">
@@ -1390,23 +836,18 @@ function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
                   ))}
                 </div>
 
-                {/* Instructions */}
                 <div className="mt-5 p-4 bg-secondary rounded-xl border border-border">
                   <p className="text-xs font-semibold mb-2">Cara Pembayaran {group.label}:</p>
                   <ol className="space-y-1.5">
                     {activeGroup === "va" && ["Salin nomor Virtual Account yang diberikan", "Buka aplikasi mobile banking atau ATM", "Pilih menu Transfer ke Virtual Account", "Masukkan nomor VA dan konfirmasi pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
                     {activeGroup === "ewallet" && ["Tap tombol 'Bayar Sekarang'", "Anda akan diarahkan ke aplikasi e-wallet", "Konfirmasi pembayaran di aplikasi e-wallet", "Kembali ke halaman ini setelah selesai"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
                     {activeGroup === "qris" && ["Tap tombol 'Bayar Sekarang'", "QR Code akan ditampilkan di layar", "Buka aplikasi e-wallet atau bank Anda", "Scan QR Code dan konfirmasi pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
-                    {activeGroup === "card" && ["Masukkan nomor kartu kredit/debit Anda", "Masukkan tanggal kadaluarsa dan CVV", "Verifikasi dengan OTP yang dikirim ke HP", "Pembayaran akan diproses secara otomatis"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
-                    {activeGroup === "retail" && ["Kunjungi gerai Alfamart atau Indomaret terdekat", "Tunjukkan kode pembayaran ke kasir", "Bayar sesuai jumlah yang tertera", "Simpan struk sebagai bukti pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
-                    {activeGroup === "paylater" && ["Pilih metode cicilan yang diinginkan", "Daftarkan akun PayLater jika belum punya", "Verifikasi identitas dan limit kredit", "Konfirmasi cicilan dan proses pembayaran"].map((s, i) => <li key={i} className="text-xs text-muted-foreground flex gap-2"><span className="text-primary font-medium flex-shrink-0">{i + 1}.</span>{s}</li>)}
                   </ol>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Summary */}
           <div className="lg:sticky lg:top-20 lg:self-start">
             <div className="bg-card rounded-2xl p-6 border border-border">
               <h2 className="font-semibold mb-5">Ringkasan Pembayaran</h2>
@@ -1444,7 +885,6 @@ function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
               <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-[9px] text-muted-foreground">
                 <div className="flex items-center gap-1"><Shield className="w-3 h-3" />SSL Encrypted</div>
                 <div className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Xendit Secured</div>
-                <div className="flex items-center gap-1"><Shield className="w-3 h-3" />PCI DSS</div>
               </div>
             </div>
           </div>
@@ -1457,21 +897,13 @@ function PaymentMethodPage({ setPage }: { setPage: (p: Page) => void }) {
 // ─── PAYMENT WAITING PAGE ─────────────────────────────────────────────────────
 
 function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
-  const [copied, setCopied] = useState(false)
-  const vaNumber = "8808 8088 5050 1234"
   const pkg = PACKAGES[1]
-
-  const handleCopy = () => {
-    setCopied(true)
-    toast.success("Nomor VA berhasil disalin!")
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   return (
     <div className="min-h-screen bg-secondary font-sans">
       <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border">
         <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
-          <button onClick={() => setPage("landing")} className="flex items-center gap-2">
+          <button onClick={() => window.location.href = "https://invito.id"} className="flex items-center gap-2">
             <Heart className="w-4 h-4 text-primary fill-primary/20" />
             <span className="font-serif text-lg font-semibold italic">Invito</span>
           </button>
@@ -1492,15 +924,23 @@ function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
           <p className="text-muted-foreground text-sm">Selesaikan pembayaran sebelum waktu habis</p>
         </div>
 
-        {/* Countdown */}
         <div className="bg-card rounded-2xl p-6 border border-border mb-5 flex flex-col items-center">
           <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Batas Waktu Pembayaran</p>
-          <CountdownTimer initialSeconds={24 * 60 * 60} />
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-14 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center text-xl font-mono font-bold text-primary">23</div>
+              <span className="text-[10px] text-muted-foreground mt-1">Jam</span>
+            </div>
+            <span className="text-primary font-bold text-xl mb-4">:</span>
+            <div className="flex flex-col items-center">
+              <div className="w-14 h-14 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center text-xl font-mono font-bold text-primary">59</div>
+              <span className="text-[10px] text-muted-foreground mt-1">Menit</span>
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground mt-3">Pembayaran akan otomatis dibatalkan jika melewati batas waktu</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-5 mb-5">
-          {/* VA / QR */}
           <div className="bg-card rounded-2xl p-6 border border-border">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-sm">BCA Virtual Account</h2>
@@ -1508,10 +948,9 @@ function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
             </div>
             <p className="text-xs text-muted-foreground mb-3">Nomor Virtual Account:</p>
             <div className="flex items-center gap-3 p-3.5 bg-secondary rounded-xl border border-border mb-4">
-              <span className="font-mono font-bold text-lg tracking-wider flex-1">{vaNumber}</span>
-              <button onClick={handleCopy} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${copied ? "bg-green-100 text-green-600" : "bg-primary/10 text-primary hover:bg-primary/20"}`}>
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                {copied ? "Tersalin!" : "Salin"}
+              <span className="font-mono font-bold text-lg tracking-wider flex-1">8808 8088 5050 1234</span>
+              <button onClick={() => { navigator.clipboard.writeText("8808808850501234"); toast.success("Nomor VA berhasil disalin!") }} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
+                <Copy className="w-3 h-3" /> Salin
               </button>
             </div>
             <div className="text-xs space-y-1.5 text-muted-foreground">
@@ -1522,7 +961,6 @@ function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
             </div>
           </div>
 
-          {/* Order details */}
           <div className="bg-card rounded-2xl p-6 border border-border">
             <h2 className="font-semibold text-sm mb-4">Detail Pesanan</h2>
             <div className="space-y-3 text-sm mb-5">
@@ -1545,26 +983,6 @@ function PaymentWaitingPage({ setPage }: { setPage: (p: Page) => void }) {
           </div>
         </div>
 
-        {/* QRIS alternative */}
-        <div className="bg-card rounded-2xl p-6 border border-border">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="font-semibold text-sm">Atau Bayar dengan QRIS</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Scan dengan GoPay, OVO, DANA, ShopeePay, dll</p>
-            </div>
-            <BankChip code="QRIS" bg="#CC0000" fg="#FFFFFF" />
-          </div>
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <QRCodeDisplay />
-            <div className="text-sm space-y-2 text-muted-foreground">
-              <p className="font-medium text-foreground text-xs mb-3">Cara Bayar QRIS:</p>
-              {["Buka aplikasi e-wallet pilihan Anda", "Pilih fitur Scan QR / QRIS", "Arahkan kamera ke QR Code", "Konfirmasi jumlah dan selesaikan pembayaran"].map((s, i) => (
-                <div key={i} className="flex gap-2 text-xs"><span className="text-primary font-medium w-4 flex-shrink-0">{i + 1}.</span>{s}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-
         <div className="mt-5 p-4 bg-yellow-50 rounded-xl border border-yellow-200 flex items-start gap-3">
           <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-yellow-700">Jangan tutup halaman ini. Undangan Anda akan aktif otomatis setelah pembayaran berhasil dikonfirmasi. Proses verifikasi maksimal 1×24 jam.</p>
@@ -1582,7 +1000,6 @@ function PaymentSuccessPage({ setPage }: { setPage: (p: Page) => void }) {
     <div className="min-h-screen bg-secondary font-sans flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-lg">
         <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.6, ease: "easeOut" }}>
-          {/* Success icon */}
           <div className="text-center mb-8">
             <div className="relative inline-block mb-5">
               <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto">
@@ -1594,7 +1011,6 @@ function PaymentSuccessPage({ setPage }: { setPage: (p: Page) => void }) {
             <p className="text-muted-foreground text-sm">Terima kasih, undangan Anda sedang diproses</p>
           </div>
 
-          {/* Transaction card */}
           <div className="bg-card rounded-2xl border border-border overflow-hidden mb-5">
             <div className="bg-gradient-to-r from-green-50 to-primary/5 px-6 py-4 border-b border-border">
               <div className="flex items-center justify-between">
@@ -1619,7 +1035,6 @@ function PaymentSuccessPage({ setPage }: { setPage: (p: Page) => void }) {
             </div>
           </div>
 
-          {/* Notification */}
           <div className="p-4 bg-primary/8 rounded-xl border border-primary/20 flex items-start gap-3 mb-6">
             <Heart className="w-4 h-4 text-primary flex-shrink-0 mt-0.5 fill-primary/20" />
             <div>
@@ -1637,7 +1052,7 @@ function PaymentSuccessPage({ setPage }: { setPage: (p: Page) => void }) {
             </button>
           </div>
 
-          <button onClick={() => setPage("landing")} className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-2">
+          <button onClick={() => window.location.href = "https://invito.id"} className="w-full mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-2">
             Kembali ke Beranda
           </button>
         </motion.div>
@@ -1654,7 +1069,6 @@ function PaymentFailedPage({ setPage }: { setPage: (p: Page) => void }) {
     <div className="min-h-screen bg-secondary font-sans flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-lg">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          {/* Toggle for demo */}
           <div className="flex justify-center mb-6">
             <div className="flex bg-card rounded-lg border border-border p-1">
               <button onClick={() => setReason("expired")} className={`px-3 py-1.5 text-xs rounded-md transition-all ${reason === "expired" ? "bg-yellow-50 text-yellow-600 border border-yellow-200" : "text-muted-foreground"}`}>Kadaluarsa</button>
@@ -1700,7 +1114,6 @@ function PaymentFailedPage({ setPage }: { setPage: (p: Page) => void }) {
             </button>
           </div>
 
-          {/* CS contact */}
           <div className="p-5 bg-card rounded-2xl border border-border">
             <p className="text-xs font-semibold mb-3 flex items-center gap-2"><Headphones className="w-4 h-4 text-primary" />Butuh Bantuan?</p>
             <p className="text-xs text-muted-foreground mb-3">Hubungi tim customer service kami jika Anda mengalami masalah pembayaran.</p>
@@ -1715,7 +1128,7 @@ function PaymentFailedPage({ setPage }: { setPage: (p: Page) => void }) {
             <p className="text-center text-[10px] text-muted-foreground mt-3">Tersedia Senin–Sabtu, 08.00–21.00 WIB</p>
           </div>
 
-          <button onClick={() => setPage("landing")} className="w-full mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-2">
+          <button onClick={() => window.location.href = "https://invito.id"} className="w-full mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-2">
             Kembali ke Beranda
           </button>
         </motion.div>
@@ -1724,141 +1137,10 @@ function PaymentFailedPage({ setPage }: { setPage: (p: Page) => void }) {
   )
 }
 
-// ─── ROOT ─────────────────────────────────────────────────────────────────────
-
-// ─── HALAMAN TAMBAHAN ─────────────────────────────────────────────────────────
-
-function TemplatesPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-4 text-center">Pilihan Tema Kami</h1>
-        <p className="text-muted-foreground mb-12 text-center">Ratusan tema elegan siap digunakan.</p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {["Elegant", "Floral", "Minimalist", "Modern", "Traditional", "Luxury"].map((t, i) => (
-            <div key={i} className="bg-card rounded-2xl border border-border p-4">
-              <div className="h-48 bg-secondary rounded-lg mb-4" />
-              <h3 className="font-semibold mb-2">{t}</h3>
-              <button onClick={() => setPage("checkout")} className="w-full py-2 bg-primary text-primary-foreground rounded-full text-sm">Gunakan</button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function FeaturesPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-4 text-center">Fitur Lengkap</h1>
-        <div className="grid sm:grid-cols-2 gap-4 mt-12">
-          {["Custom Domain", "RSVP & Ucapan", "Amplop Digital", "Galeri Foto", "Musik Latar", "Google Maps", "QR Code Check-In", "Live Streaming"].map((f, i) => (
-            <div key={i} className="p-4 bg-card border border-border rounded-xl">
-              <h3 className="font-semibold">{f}</h3>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function PricingPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-4">Pilih Paket Anda</h1>
-        <p className="text-muted-foreground mb-8">Lihat detail harga dan fitur lengkap di halaman checkout.</p>
-        <button onClick={() => setPage("checkout")} className="px-6 py-3 bg-primary text-primary-foreground rounded-full">Lihat Paket</button>
-      </div>
-    </div>
-  )
-}
-
-function AboutPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-6">Tentang Kami</h1>
-        <p className="text-muted-foreground leading-relaxed">Invito adalah platform undangan digital pernikahan #1 di Indonesia. Kami membantu ribuan pasangan mewujudkan undangan impian mereka dengan mudah, cepat, dan elegan.</p>
-      </div>
-    </div>
-  )
-}
-
-function FAQPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-6">Pertanyaan Umum</h1>
-        <div className="space-y-4">
-          <div className="p-4 bg-card rounded-xl">
-            <h3 className="font-semibold mb-2">Berapa lama proses pembuatan?</h3>
-            <p className="text-sm text-muted-foreground">Hanya butuh 30 menit!</p>
-          </div>
-          <div className="p-4 bg-card rounded-xl">
-            <h3 className="font-semibold mb-2">Apakah bisa diedit setelah diterbitkan?</h3>
-            <p className="text-sm text-muted-foreground">Ya, Anda bisa mengedit kapan saja.</p>
-          </div>
-          <div className="p-4 bg-card rounded-xl">
-            <h3 className="font-semibold mb-2">Bagaimana cara membagikan undangan?</h3>
-            <p className="text-sm text-muted-foreground">Cukup copy link dan bagikan via WhatsApp atau media sosial.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ContactPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-6">Hubungi Kami</h1>
-        <p className="text-muted-foreground mb-2">Email: support@invito.id</p>
-        <p className="text-muted-foreground mb-2">WhatsApp: 0812-3456-7890</p>
-        <p className="text-muted-foreground">Alamat: Jakarta, Indonesia</p>
-      </div>
-    </div>
-  )
-}
-
-function TermsPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-6">Syarat & Ketentuan</h1>
-        <p className="text-muted-foreground leading-relaxed">Dengan menggunakan Invito, Anda menyetujui syarat dan ketentuan yang berlaku. Pembayaran bersifat non-refundable setelah undangan diterbitkan.</p>
-      </div>
-    </div>
-  )
-}
-
-function PrivacyPage({ setPage }: { setPage: (p: Page) => void }) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-6 py-20">
-        <button onClick={() => setPage("landing")} className="text-sm text-muted-foreground mb-8">← Kembali ke Beranda</button>
-        <h1 className="font-serif text-4xl font-semibold mb-6">Kebijakan Privasi</h1>
-        <p className="text-muted-foreground leading-relaxed">Privasi Anda sangat penting bagi kami. Kami tidak akan membagikan data pribadi Anda ke pihak ketiga tanpa izin.</p>
-      </div>
-    </div>
-  )
-}
-
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [page, setPage] = useState<Page>("landing")
+  const [page, setPage] = useState<Page>("dashboard")
   const [authTab, setAuthTab] = useState<AuthTab>("login")
 
   const render = () => {
@@ -1871,15 +1153,7 @@ export default function App() {
       case "payment-waiting": return <PaymentWaitingPage setPage={setPage} />
       case "payment-success": return <PaymentSuccessPage setPage={setPage} />
       case "payment-failed": return <PaymentFailedPage setPage={setPage} />
-      case "templates": return <TemplatesPage setPage={setPage} />
-      case "pricing": return <PricingPage setPage={setPage} />
-      case "features": return <FeaturesPage setPage={setPage} />
-      case "about": return <AboutPage setPage={setPage} />
-      case "faq": return <FAQPage setPage={setPage} />
-      case "contact": return <ContactPage setPage={setPage} />
-      case "terms": return <TermsPage setPage={setPage} />
-      case "privacy": return <PrivacyPage setPage={setPage} />
-      default: return <LandingPage setPage={setPage} setAuthTab={setAuthTab} />
+      default: return <DashboardPage setPage={setPage} />
     }
   }
 
