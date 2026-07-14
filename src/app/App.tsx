@@ -669,7 +669,7 @@ function LandingPage({ setPage, setAuthTab }: { setPage: (p: Page) => void; setA
                 <button onClick={() => setPage("checkout")} className="px-8 py-3.5 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-all hover:shadow-[0_8px_28px_rgba(196,149,74,0.4)] flex items-center gap-2">
                   Mulai Gratis <ArrowRight className="w-4 h-4" />
                 </button>
-                <button className="px-8 py-3.5 border border-border rounded-full text-sm font-medium hover:border-primary hover:text-primary transition-all">Lihat Semua Template</button>
+                <button onClick={() => setPage("templates")} className="...">Lihat Semua Template</button>
               </div>
             </div>
           </div>
