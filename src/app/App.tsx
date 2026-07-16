@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "motion/react"
 import {
   Heart, Menu, X, Smartphone, Globe, Music, Users, MapPin,
@@ -246,6 +246,24 @@ function AuthPage({ setPage, initialTab }: { setPage: (p: Page) => void; initial
 
 function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
   const [activeMenu, setActiveMenu] = useState("Dashboard")
+  const [invitations, setInvitations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Ambil data dari Backend saat komponen pertama kali dimuat
+  useEffect(() => {
+    fetch('http://localhost:5000/api/invitations')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          setInvitations(data.data)
+        }
+        setLoading(false)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil data:', error)
+        setLoading(false)
+      })
+  }, [])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [txFilter, setTxFilter] = useState("Semua")
 
@@ -262,7 +280,7 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
         <div className="px-5 py-5 border-b border-sidebar-border">
-          <button onClick={() => window.location.href = "https://invito.id"} className="flex items-center gap-2">
+          <button onClick={() => window.location.href = "http://localhost:5173"} className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-primary fill-primary/25" />
             <span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span>
           </button>
@@ -282,7 +300,7 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
               <p className="text-[10px] text-sidebar-foreground/45 truncate">anisa@email.com</p>
             </div>
           </div>
-          <button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs transition-colors">
+          <button onClick={() => window.location.href = "http://localhost:5173"} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg ...">
             <LogOut className="w-3.5 h-3.5" /> Keluar
           </button>
         </div>
@@ -437,29 +455,48 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
                 </div>
               </div>
               <div className="bg-card rounded-2xl p-5 border border-border">
-                <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">Undangan Saya</h3><button onClick={() => setPage("checkout")} className="text-xs text-primary flex items-center gap-1 hover:underline"><Plus className="w-3 h-3" /> Buat baru</button></div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { title: "Anisa & Raka", theme: "Elegant", status: "Published", visits: "2.847" },
-                    { title: "Draft Undangan 2", theme: "Floral", status: "Draft", visits: "—" },
-                  ].map(({ title, theme, status, visits }, i) => (
-                    <div key={i} className="border border-border rounded-xl overflow-hidden group hover:shadow-md transition-all">
-                      <div className="h-28 bg-gradient-to-br from-secondary to-accent/40 flex items-center justify-center relative">
-                        <p className="font-serif text-base">{title}</p>
-                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <button onClick={() => setPage("editor")} className="px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs shadow-md">Edit</button>
-                        </div>
-                      </div>
-                      <div className="px-3.5 py-2.5 flex items-center justify-between">
-                        <div><p className="text-xs font-medium">{theme}</p><p className="text-[10px] text-muted-foreground">{visits} kunjungan</p></div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${status === "Published" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"}`}>{status}</span>
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={() => setPage("checkout")} className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground">
-                    <Plus className="w-6 h-6" /><span className="text-xs">Buat Undangan Baru</span>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold">Undangan Saya</h3>
+                  <button onClick={() => window.location.href = "http://localhost:5174"} className="text-xs text-primary flex items-center gap-1 hover:underline">
+                    <Plus className="w-3 h-3" /> Buat baru
                   </button>
                 </div>
+
+                {loading ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">Memuat data undangan...</div>
+                ) : invitations.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">Belum ada undangan. Yuk buat yang pertama!</div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {invitations.map((inv: any) => (
+                      <div key={inv.id} className="border border-border rounded-xl overflow-hidden group hover:shadow-md transition-all">
+                        <div className="h-28 bg-gradient-to-br from-secondary to-accent/40 flex items-center justify-center relative">
+                          <p className="font-serif text-base">{inv.coupleName}</p>
+                          <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs shadow-md">Edit</button>
+                          </div>
+                        </div>
+                        <div className="px-3.5 py-2.5 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium">{inv.theme}</p>
+                            <p className="text-[10px] text-muted-foreground">{inv.visits} kunjungan</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${inv.status === "Published" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"
+                            }`}>
+                            {inv.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Tombol Buat Baru */}
+                    <button onClick={() => window.location.href = "http://localhost:5174"}
+                      className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                      <Plus className="w-6 h-6" />
+                      <span className="text-xs">Buat Undangan Baru</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
