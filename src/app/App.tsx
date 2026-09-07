@@ -623,16 +623,35 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("Semua")
-  const MOCK_GUESTS = [
-    { id: 1, name: "Budi Santoso", whatsapp: "081234567890", status: "Hadir", time: "2 jam lalu", table: "Meja 1" },
-    { id: 2, name: "Siti Aminah", whatsapp: "089876543210", status: "Tidak Hadir", time: "5 jam lalu", table: "-" },
-    { id: 3, name: "Andi Pratama", whatsapp: "085678901234", status: "Belum Konfirmasi", time: "-", table: "-" },
-    { id: 4, name: "Dewi Lestari", whatsapp: "081122334455", status: "Hadir", time: "1 hari lalu", table: "Meja 2" },
-    { id: 5, name: "Rizky Ramadhan", whatsapp: "087788990011", status: "Hadir", time: "1 hari lalu", table: "Meja 1" },
-  ]
-  const filteredGuests = MOCK_GUESTS.filter(g => {
+  // ✅ BARU: data tamu asli dari backend (tabel guests)
+  const [guests, setGuests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    fetch('http://localhost:5000/api/guests')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setGuests(data.data)
+        setLoading(false)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil data tamu:', error)
+        setLoading(false)
+      })
+  }, [])
+  // ✅ Waktu relatif dari created_at
+  const timeAgo = (iso: string) => {
+    if (!iso) return "-"
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return "Baru saja"
+    if (mins < 60) return `${mins} mnt lalu`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours} jam lalu`
+    return `${Math.floor(hours / 24)} hari lalu`
+  }
+  const filteredGuests = guests.filter(g => {
     const matchSearch = g.name.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filter === "Semua" || g.status === filter
+    const matchFilter = filter === "Semua" || g.rsvp_status === filter
     return matchSearch && matchFilter
   })
   const getStatusColor = (status: string) => {
@@ -701,16 +720,17 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-5">
+          {/* ✅ Kartu statistik dihitung dari data asli */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
-              { label: "Total Tamu", value: MOCK_GUESTS.length, color: "text-blue-500 bg-blue-50", icon: Users },
-              { label: "Hadir", value: MOCK_GUESTS.filter(g => g.status === "Hadir").length, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
-              { label: "Tidak Hadir", value: MOCK_GUESTS.filter(g => g.status === "Tidak Hadir").length, color: "text-red-500 bg-red-50", icon: XCircle },
-              { label: "Belum Konfirmasi", value: MOCK_GUESTS.filter(g => g.status === "Belum Konfirmasi").length, color: "text-yellow-500 bg-yellow-50", icon: Clock },
+              { label: "Total Tamu", value: guests.length, color: "text-blue-500 bg-blue-50", icon: Users },
+              { label: "Hadir", value: guests.filter(g => g.rsvp_status === "Hadir").length, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
+              { label: "Tidak Hadir", value: guests.filter(g => g.rsvp_status === "Tidak Hadir").length, color: "text-red-500 bg-red-50", icon: XCircle },
+              { label: "Masih Ragu", value: guests.filter(g => g.rsvp_status === "Masih Ragu").length, color: "text-yellow-500 bg-yellow-50", icon: Clock },
             ].map(({ label, value, color, icon: Icon }, i) => (
               <div key={i} className="bg-card rounded-xl p-4 border border-border">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
-                <p className="text-lg font-bold">{value}</p>
+                <p className="text-lg font-bold">{loading ? "…" : value}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
               </div>
             ))}
@@ -722,7 +742,7 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama tamu..." className="pl-8 pr-3 py-2 text-xs border border-border rounded-lg bg-muted outline-none focus:border-primary w-full" />
               </div>
               <div className="flex bg-muted rounded-lg overflow-hidden border border-border">
-                {["Semua", "Hadir", "Tidak Hadir", "Belum Konfirmasi"].map(f => (
+                {["Semua", "Hadir", "Tidak Hadir", "Masih Ragu"].map(f => (
                   <button key={f} onClick={() => setFilter(f)} className={`px-3 py-2 text-[11px] transition-colors ${filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/80"}`}>{f}</button>
                 ))}
               </div>
@@ -737,19 +757,23 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredGuests.map((guest, i) => (
-                    <tr key={guest.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
-                      <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">{guest.name}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-nowrap">{guest.whatsapp}</td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${getStatusColor(guest.status)}`}>{guest.status}</span></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{guest.time}</td>
-                      <td className="px-4 py-3 text-xs whitespace-nowrap">{guest.table}</td>
-                      <td className="px-4 py-3"><button onClick={() => toast.info("Fitur detail tamu akan segera hadir!")} className="text-[10px] text-primary hover:underline whitespace-nowrap">Detail</button></td>
-                    </tr>
-                  ))}
+                  {loading ? (
+                    <tr><td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">Memuat data tamu...</td></tr>
+                  ) : (
+                    filteredGuests.map((guest, i) => (
+                      <tr key={guest.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                        <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">{guest.name}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-nowrap">{guest.whatsapp ?? "-"}</td>
+                        <td className="px-4 py-3"><span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${getStatusColor(guest.rsvp_status)}`}>{guest.rsvp_status}</span></td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{timeAgo(guest.created_at)}</td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap">{guest.table_number ?? "-"}</td>
+                        <td className="px-4 py-3"><button onClick={() => toast.info("Fitur detail tamu akan segera hadir!")} className="text-[10px] text-primary hover:underline whitespace-nowrap">Detail</button></td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
-              {filteredGuests.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada tamu ditemukan</div>}
+              {!loading && filteredGuests.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada tamu ditemukan</div>}
             </div>
           </div>
         </main>
@@ -768,14 +792,33 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [filter, setFilter] = useState("Semua")
-  const MOCK_RSVP = [
-    { id: 1, name: "Budi Santoso", status: "Hadir", message: "Selamat menempuh hidup baru! Semoga menjadi keluarga yang sakinah, mawaddah, warahmah.", time: "2 jam lalu", guests: 2 },
-    { id: 2, name: "Siti Aminah", status: "Tidak Hadir", message: "Mohon maaf tidak bisa hadir karena ada acara keluarga di luar kota. Doa terbaik untuk kalian!", time: "5 jam lalu", guests: 0 },
-    { id: 3, name: "Andi Pratama", status: "Hadir", message: "Happy wedding bro! Ditunggu traktirannya.", time: "1 hari lalu", guests: 1 },
-    { id: 4, name: "Dewi Lestari", status: "Hadir", message: "Selamat ya Dew! Cantik banget undangannya.", time: "1 hari lalu", guests: 3 },
-    { id: 5, name: "Rizky Ramadhan", status: "Masih Ragu", message: "Insya Allah hadir ya, lagi konfirmasi jadwal dulu.", time: "2 hari lalu", guests: 1 },
-  ]
-  const filteredRSVP = MOCK_RSVP.filter(r => filter === "Semua" || r.status === filter)
+  // ✅ BARU: data RSVP asli dari backend (tabel rsvps)
+  const [rsvps, setRsvps] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    fetch('http://localhost:5000/api/rsvps')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) setRsvps(data.data)
+        setLoading(false)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil data RSVP:', error)
+        setLoading(false)
+      })
+  }, [])
+  // ✅ Waktu relatif dari created_at
+  const timeAgo = (iso: string) => {
+    if (!iso) return "-"
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return "Baru saja"
+    if (mins < 60) return `${mins} mnt lalu`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours} jam lalu`
+    return `${Math.floor(hours / 24)} hari lalu`
+  }
+  const filteredRSVP = rsvps.filter(r => filter === "Semua" || r.attendance_status === filter)
   const getStatusColor = (status: string) => {
     if (status === "Hadir") return "bg-green-50 text-green-600 border-green-200"
     if (status === "Tidak Hadir") return "bg-red-50 text-red-500 border-red-200"
@@ -841,10 +884,10 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
         <main className="flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
-              { label: "Total RSVP", value: MOCK_RSVP.length, color: "text-blue-500 bg-blue-50", icon: MessageCircle },
-              { label: "Hadir", value: MOCK_RSVP.filter(r => r.status === "Hadir").length, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
-              { label: "Tidak Hadir", value: MOCK_RSVP.filter(r => r.status === "Tidak Hadir").length, color: "text-red-500 bg-red-50", icon: XCircle },
-              { label: "Masih Ragu", value: MOCK_RSVP.filter(r => r.status === "Masih Ragu").length, color: "text-yellow-500 bg-yellow-50", icon: Clock },
+              { label: "Total RSVP", value: loading ? "…" : rsvps.length, color: "text-blue-500 bg-blue-50", icon: MessageCircle },
+              { label: "Hadir", value: loading ? "…" : rsvps.filter(r => r.attendance_status === "Hadir").length, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
+              { label: "Tidak Hadir", value: loading ? "…" : rsvps.filter(r => r.attendance_status === "Tidak Hadir").length, color: "text-red-500 bg-red-50", icon: XCircle },
+              { label: "Masih Ragu", value: loading ? "…" : rsvps.filter(r => r.attendance_status === "Masih Ragu").length, color: "text-yellow-500 bg-yellow-50", icon: Clock },
             ].map(({ label, value, color, icon: Icon }, i) => (
               <div key={i} className="bg-card rounded-xl p-4 border border-border">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
@@ -863,22 +906,27 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
               </div>
             </div>
             <div className="divide-y divide-border/50 max-h-[500px] overflow-y-auto">
-              {filteredRSVP.map((rsvp) => (
-                <div key={rsvp.id} className="p-4 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{rsvp.name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
-                      <div>
-                        <p className="text-sm font-semibold">{rsvp.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{rsvp.time} • {rsvp.guests > 0 ? `${rsvp.guests} orang` : 'Tanpa tamu'}</p>
+              {loading ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">Memuat data RSVP...</div>
+              ) : filteredRSVP.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada RSVP ditemukan</div>
+              ) : (
+                filteredRSVP.map((rsvp) => (
+                  <div key={rsvp.id} className="p-4 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{rsvp.name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
+                        <div>
+                          <p className="text-sm font-semibold">{rsvp.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{timeAgo(rsvp.created_at)} • {rsvp.number_of_guests > 0 ? `${rsvp.number_of_guests} orang` : 'Tanpa tamu'}</p>
+                        </div>
                       </div>
+                      <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${getStatusColor(rsvp.attendance_status)}`}>{rsvp.attendance_status}</span>
                     </div>
-                    <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${getStatusColor(rsvp.status)}`}>{rsvp.status}</span>
+                    <p className="text-xs text-muted-foreground leading-relaxed pl-12 italic">"{rsvp.message}"</p>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed pl-12 italic">"{rsvp.message}"</p>
-                </div>
-              ))}
-              {filteredRSVP.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada RSVP ditemukan</div>}
+                ))
+              )}
             </div>
           </div>
         </main>
@@ -887,7 +935,7 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
   )
 }
 
-// ─── DIGITAL ENVELOPE PAGE ───────────────────────────────────────────────────
+/// ─── DIGITAL ENVELOPE PAGE ───────────────────────────────────────────────────
 function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
   setPage: (p: Page) => void
   activeMenu: string
@@ -896,16 +944,31 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [filter, setFilter] = useState("Semua")
-  const MOCK_ENVELOPES = [
-    { id: 1, name: "Budi Santoso", amount: 500000, date: "12 Jan 2025", status: "Ditarik", message: "Selamat menempuh hidup baru!" },
-    { id: 2, name: "Siti Aminah", amount: 250000, date: "12 Jan 2025", status: "Ditarik", message: "Mohon maaf tidak bisa hadir." },
-    { id: 3, name: "Andi Pratama", amount: 1000000, date: "11 Jan 2025", status: "Belum Ditarik", message: "Happy wedding bro!" },
-    { id: 4, name: "Dewi Lestari", amount: 300000, date: "11 Jan 2025", status: "Ditarik", message: "Selamat ya Dew!" },
-    { id: 5, name: "Rizky Ramadhan", amount: 150000, date: "10 Jan 2025", status: "Belum Ditarik", message: "Semoga sakinah mawaddah warahmah." },
-  ]
-  const filteredEnvelopes = MOCK_ENVELOPES.filter(e => filter === "Semua" || e.status === filter)
-  const totalAmount = MOCK_ENVELOPES.reduce((sum, e) => sum + e.amount, 0)
-  const withdrawnAmount = MOCK_ENVELOPES.filter(e => e.status === "Ditarik").reduce((sum, e) => sum + e.amount, 0)
+  // ✅ BARU: data amplop asli dari backend (tabel digital_envelopes)
+  const [envelopes, setEnvelopes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    fetch('http://localhost:5000/api/envelopes')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) setEnvelopes(data.data)
+        setLoading(false)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil data amplop:', error)
+        setLoading(false)
+      })
+  }, [])
+  // ✅ amount (decimal) dari Postgres datang sebagai string → konversi ke number
+  const toNumber = (v: any) => Number(v) || 0
+  // ✅ Tanggal singkat Indonesia dari created_at
+  const fmtDate = (iso: string) => {
+    if (!iso) return "-"
+    return new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+  }
+  const filteredEnvelopes = envelopes.filter(e => filter === "Semua" || e.withdrawal_status === filter)
+  const totalAmount = envelopes.reduce((sum, e) => sum + toNumber(e.amount), 0)
+  const withdrawnAmount = envelopes.filter(e => e.withdrawal_status === "Ditarik").reduce((sum, e) => sum + toNumber(e.amount), 0)
   const handleNav = (label: string) => {
     setActiveMenu(label)
     if (label === "Dashboard") setPage("dashboard")
@@ -969,10 +1032,10 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
         <main className="flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
-              { label: "Total Amplop", value: MOCK_ENVELOPES.length, color: "text-blue-500 bg-blue-50", icon: Gift },
-              { label: "Total Dana", value: fmt(totalAmount), color: "text-green-500 bg-green-50", icon: TrendingUp },
-              { label: "Sudah Ditarik", value: fmt(withdrawnAmount), color: "text-purple-500 bg-purple-50", icon: CheckCircle2 },
-              { label: "Belum Ditarik", value: fmt(totalAmount - withdrawnAmount), color: "text-yellow-500 bg-yellow-50", icon: Clock },
+              { label: "Total Amplop", value: loading ? "…" : envelopes.length, color: "text-blue-500 bg-blue-50", icon: Gift },
+              { label: "Total Dana", value: loading ? "…" : fmt(totalAmount), color: "text-green-500 bg-green-50", icon: TrendingUp },
+              { label: "Sudah Ditarik", value: loading ? "…" : fmt(withdrawnAmount), color: "text-purple-500 bg-purple-50", icon: CheckCircle2 },
+              { label: "Belum Ditarik", value: loading ? "…" : fmt(totalAmount - withdrawnAmount), color: "text-yellow-500 bg-yellow-50", icon: Clock },
             ].map(({ label, value, color, icon: Icon }, i) => (
               <div key={i} className="bg-card rounded-xl p-4 border border-border">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
@@ -991,22 +1054,27 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
               </div>
             </div>
             <div className="divide-y divide-border/50 max-h-[500px] overflow-y-auto">
-              {filteredEnvelopes.map((env) => (
-                <div key={env.id} className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{env.name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
-                    <div>
-                      <p className="text-sm font-semibold">{env.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{env.date} • "{env.message}"</p>
+              {loading ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">Memuat data amplop...</div>
+              ) : filteredEnvelopes.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada data amplop ditemukan</div>
+              ) : (
+                filteredEnvelopes.map((env) => (
+                  <div key={env.id} className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{env.sender_name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
+                      <div>
+                        <p className="text-sm font-semibold">{env.sender_name}</p>
+                        <p className="text-[10px] text-muted-foreground">{fmtDate(env.created_at)} • "{env.message}"</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <p className="text-sm font-bold text-primary">{fmt(toNumber(env.amount))}</p>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${env.withdrawal_status === "Ditarik" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"}`}>{env.withdrawal_status}</span>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-4">
-                    <p className="text-sm font-bold text-primary">{fmt(env.amount)}</p>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${env.status === "Ditarik" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"}`}>{env.status}</span>
-                  </div>
-                </div>
-              ))}
-              {filteredEnvelopes.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada data amplop ditemukan</div>}
+                ))
+              )}
             </div>
           </div>
         </main>
@@ -1619,10 +1687,12 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
 }) {
   const [invitations, setInvitations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  // ✅ BARU: ringkasan statistik asli dari backend
+  const [summary, setSummary] = useState<any>(null)
   // ✅ State untuk hapus undangan
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
-  // Ambil data dari Backend saat komponen pertama kali dimuat
+  // Ambil data undangan dari Backend saat komponen pertama kali dimuat
   useEffect(() => {
     fetch('http://localhost:5000/api/invitations')
       .then(response => response.json())
@@ -1637,7 +1707,41 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
         setLoading(false)
       })
   }, [])
-  // ✅ Hapus undangan dari database (DELETE ke backend)
+  // ✅ BARU: ambil ringkasan statistik dari endpoint dashboard
+  useEffect(() => {
+    fetch('http://localhost:5000/api/dashboard/summary')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) setSummary(data.data)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil ringkasan:', error)
+      })
+  }, [])
+  // ✅ Helper format angka ribuan gaya Indonesia (2847 → "2.847")
+  const fmtAngka = (n: number) => (n ?? 0).toLocaleString("id-ID")
+  // ✅ Format rupiah ringkas (2200000 → "Rp 2,2jt")
+  const fmtRingkas = (n: number) => {
+    const v = n ?? 0
+    if (v >= 1000000) return `Rp ${(v / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 1 })}jt`
+    if (v >= 1000) return `Rp ${(v / 1000).toLocaleString("id-ID", { maximumFractionDigits: 0 })}rb`
+    return fmt(v)
+  }
+  // ✅ Waktu relatif untuk RSVP terbaru
+  const timeAgo = (iso: string) => {
+    if (!iso) return "-"
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return "Baru saja"
+    if (mins < 60) return `${mins} mnt lalu`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours} jam lalu`
+    return `${Math.floor(hours / 24)} hari lalu`
+  }
+  const rsvpColor = (status: string) =>
+    status === "Hadir" ? "bg-green-50 text-green-600"
+      : status === "Tidak Hadir" ? "bg-red-50 text-red-500"
+        : "bg-yellow-50 text-yellow-600"
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return
     setDeleting(true)
@@ -1672,7 +1776,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
       setPage("my-invitations")
       setSidebarOpen(false)
     } else if (label === "Edit Undangan") {
-      // ✅ Sidebar tetap membuka editor baru (tanpa memuat undangan lama)
       toast.info("Edit undangan yang sudah ada saat ini")
       setPage("editor")
       setSidebarOpen(false)
@@ -1701,7 +1804,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
       setPage("user-access")
       setSidebarOpen(false)
     } else if (label === "Transaksi") {
-      // Tetap di dashboard tapi tampilkan view transaksi
       setPage("dashboard")
       setSidebarOpen(false)
     } else {
@@ -1827,18 +1929,16 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
             </div>
           ) : (
             <>
+              {/* ✅ 4 kartu statistik — kini ASLI dari /api/dashboard/summary */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                 {[
-                  { label: "Total Kunjungan", value: "2.847", change: "+12%", icon: TrendingUp, colorCls: "text-blue-500 bg-blue-50" },
-                  { label: "Jumlah Tamu", value: "248", change: "+8 baru", icon: Users, colorCls: "text-primary bg-primary/10" },
-                  { label: "RSVP Masuk", value: "186", change: "75%", icon: Check, colorCls: "text-green-500 bg-green-50" },
-                  { label: "Amplop Digital", value: "Rp 12,4jt", change: "+450rb", icon: Gift, colorCls: "text-purple-500 bg-purple-50" },
-                ].map(({ label, value, change, icon: Icon, colorCls }, i) => (
+                  { label: "Total Kunjungan", value: summary ? fmtAngka(summary.totalVisits) : "…", icon: TrendingUp, colorCls: "text-blue-500 bg-blue-50" },
+                  { label: "Jumlah Tamu", value: summary ? fmtAngka(summary.totalGuests) : "…", icon: Users, colorCls: "text-primary bg-primary/10" },
+                  { label: "RSVP Masuk", value: summary ? fmtAngka(summary.totalRsvp) : "…", icon: Check, colorCls: "text-green-500 bg-green-50" },
+                  { label: "Amplop Digital", value: summary ? fmtRingkas(summary.totalEnvelope) : "…", icon: Gift, colorCls: "text-purple-500 bg-purple-50" },
+                ].map(({ label, value, icon: Icon, colorCls }, i) => (
                   <div key={i} className="bg-card rounded-2xl p-4 border border-border">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${colorCls}`}><Icon className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-green-600 bg-green-50 rounded-full">{change}</span>
-                    </div>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${colorCls}`}><Icon className="w-4 h-4" /></div>
                     <p className="text-xl font-semibold mb-0.5">{value}</p>
                     <p className="text-[11px] text-muted-foreground">{label}</p>
                   </div>
@@ -1865,25 +1965,24 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+                {/* ✅ RSVP Terbaru — kini ASLI dari database */}
                 <div className="bg-card rounded-2xl p-5 border border-border">
-                  <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">RSVP Terbaru</h3><button className="text-xs text-primary hover:underline">Lihat semua</button></div>
-                  <div className="space-y-3">
-                    {[
-                      { name: "Dewi Sartika", status: "Hadir", time: "5 mnt lalu" },
-                      { name: "Ahmad Fauzi", status: "Hadir", time: "12 mnt lalu" },
-                      { name: "Rina Kusuma", status: "Tidak Hadir", time: "1 jam lalu" },
-                      { name: "Budi Santoso", status: "Hadir", time: "2 jam lalu" },
-                      { name: "Maya Putri", status: "Hadir", time: "3 jam lalu" },
-                    ].map(({ name, status, time }, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-[11px] font-semibold text-primary flex-shrink-0">{name[0]}</div>
-                          <div><p className="text-xs font-medium">{name}</p><p className="text-[10px] text-muted-foreground">{time}</p></div>
+                  <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">RSVP Terbaru</h3><button onClick={() => setPage("rsvp")} className="text-xs text-primary hover:underline">Lihat semua</button></div>
+                  {!summary || (summary.rsvpRecent ?? []).length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground text-xs">Belum ada RSVP masuk.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {summary.rsvpRecent.map((r: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-[11px] font-semibold text-primary flex-shrink-0">{(r.name ?? "?")[0]}</div>
+                            <div><p className="text-xs font-medium">{r.name}</p><p className="text-[10px] text-muted-foreground">{timeAgo(r.created_at)}</p></div>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${rsvpColor(r.attendance_status)}`}>{r.attendance_status}</span>
                         </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${status === "Hadir" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>{status}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="bg-card rounded-2xl p-5 border border-border">
@@ -1926,7 +2025,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                               >
                                 Edit
                               </button>
-                              {/* ✅ BARU: tombol Hapus dengan konfirmasi */}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -1950,7 +2048,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                         </div>
                       )
                     })}
-                    {/* Tombol Buat Baru */}
                     <button onClick={() => window.location.href = "http://localhost:5174"}
                       className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground">
                       <Plus className="w-6 h-6" />
@@ -1963,7 +2060,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
           )}
         </main>
       </div>
-      {/* ✅ BARU: dialog peringatan hapus */}
+      {/* ✅ dialog peringatan hapus */}
       <ConfirmDeleteDialog
         open={deleteTarget !== null}
         title="Hapus Undangan?"
