@@ -34,9 +34,10 @@ type Page =
   | "settings"
   | "admin-access"
   | "user-access"
+  | "create-invitation"
 
 type AuthTab = "login" | "register"
-type UserInfo = { name: string; email: string; phone: string }
+type UserInfo = { id?: number; name: string; email: string; phone: string; role: string }
 type UserAccount = { id: number; name: string; email: string; photo: string | null; password: string; role?: string }
 // ── DATA CONSTANTS ──────────────────────────────────────────────────────────
 const SIDEBAR_NAV = [
@@ -214,56 +215,84 @@ function AuthPage({ setPage, initialTab, setUser, userAccounts, adminAccounts }:
   adminAccounts: AdminAccount[]
 }) {
   const [tab] = useState<AuthTab>(initialTab)
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validasi dasar di frontend sebelum kirim ke backend
+    if (tab === "register" && name.length < 3) {
+      toast.error("Nama minimal 3 karakter!")
+      return
+    }
+    if (!email.includes("@")) {
+      toast.error("Format email tidak valid!")
+      return
+    }
+    if (password.length < 6) {
+      toast.error("Password minimal 6 karakter!")
+      return
+    }
+
     setLoading(true)
     try {
-      // ✅ 1) Cek dulu akun yang dibuat dari menu "Akses Pengguna" (lokal)
-      const localAccount = userAccounts.find(
-        a => a.email.toLowerCase() === email.toLowerCase() && a.password === password
-      )
+      // 1) Cek dulu akun lokal (buatan dari menu Akses Pengguna / Akses Admin di dashboard)
+      const localAccount = userAccounts.find(a => a.email.toLowerCase() === email.toLowerCase() && a.password === password)
       if (localAccount) {
-        setUser({ name: localAccount.name, email: localAccount.email, phone: "081234567890" })
+        setUser({ id: localAccount.id, name: localAccount.name, email: localAccount.email, phone: "081234567890", role: localAccount.role ?? "Pengguna" })
         toast.success(`Selamat datang, ${localAccount.name}!`)
-        setTimeout(() => {
-          setPage("dashboard")
-        }, 1000)
+        setTimeout(() => setPage("dashboard"), 1000)
         return
       }
-      // ✅ 1b) BARU: cek akun yang dibuat dari menu "Akses Admin"
-      const adminAccount = adminAccounts.find(
-        a => a.email.toLowerCase() === email.toLowerCase() && a.password === password
-      )
+
+      const adminAccount = adminAccounts.find(a => a.email.toLowerCase() === email.toLowerCase() && a.password === password)
       if (adminAccount) {
-        setUser({ name: adminAccount.name, email: adminAccount.email, phone: "081234567890" })
+        setUser({ id: adminAccount.id, name: adminAccount.name, email: adminAccount.email, phone: "081234567890", role: adminAccount.role ?? "Admin" })
         toast.success(`Selamat datang, ${adminAccount.name}! (${adminAccount.role})`)
-        setTimeout(() => {
-          setPage("dashboard")
-        }, 1000)
+        setTimeout(() => setPage("dashboard"), 1000)
         return
       }
-      // ✅ 2) Jika tidak ketemu, cek ke backend NestJS (akun demo)
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+
+      // 2) Tentukan URL dan Payload berdasarkan Tab (Login atau Register)
+      const isRegister = tab === "register"
+      const url = isRegister
+        ? "http://localhost:5000/api/auth/register"
+        : "http://localhost:5000/api/auth/login"
+
+      const payload = isRegister
+        ? { name, email, password }
+        : { email, password }
+
+      // 3) Panggil Backend NestJS
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       })
+
       const data = await response.json()
+
       if (data.success) {
-        setUser({ name: data.user.name, email: data.user.email, phone: "081234567890" })
-        toast.success(data.message || (tab === "register" ? "Registrasi berhasil!" : "Login berhasil!"))
-        setTimeout(() => {
-          setPage("dashboard")
-        }, 1000)
+        // Kalau Register berhasil, kita langsung auto-login agar UX lebih mulus
+        const userData = data.user
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          phone: "081234567890",
+          role: userData.role ?? "Pengguna"
+        })
+
+        toast.success(data.message || (isRegister ? "Registrasi berhasil! Selamat datang." : "Login berhasil!"))
+        setTimeout(() => setPage("dashboard"), 1000)
       } else {
-        toast.error(data.message || "Email atau password salah")
+        toast.error(data.message || "Gagal memproses akun.")
       }
     } catch (error) {
       console.error("Gagal terhubung ke backend:", error)
-      toast.error("Tidak dapat terhubung ke server. Pastikan backend NestJS sedang berjalan!")
+      toast.error("Tidak dapat terhubung ke server. Pastikan backend NestJS berjalan di port 5000!")
     } finally {
       setLoading(false)
     }
@@ -278,7 +307,7 @@ function AuthPage({ setPage, initialTab, setUser, userAccounts, adminAccounts }:
             <Heart className="w-5 h-5 text-primary fill-primary/30" />
             <span className="font-serif text-xl font-semibold italic">Invito</span>
           </button>
-          <blockquote className="font-serif text-2xl italic leading-relaxed mb-5">&ldquo;Hari spesial Anda layak mendapat undangan yang sama spesialnya.&rdquo;</blockquote>
+          <blockquote className="font-serif text-2xl italic leading-relaxed mb-5">"Hari spesial Anda layak mendapat undangan yang sama spesialnya."</blockquote>
           <div className="flex -space-x-2 mb-2">
             {["1438761681033-6461ffad8d80", "1494790108755-2616b612b977", "150700321169-0a1dd7228f2d"].map((id, i) => (
               <img key={i} src={`https://images.unsplash.com/photo-${id}?w=40&h=40&fit=crop&auto=format`} className="w-8 h-8 rounded-full border-2 border-white object-cover" alt="user" />
@@ -298,6 +327,21 @@ function AuthPage({ setPage, initialTab, setUser, userAccounts, adminAccounts }:
             <p className="text-muted-foreground text-sm">Masuk ke akun Invito Anda</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
+            {/* ✅ Munculkan input nama khusus untuk tab Register */}
+            {tab === "register" && (
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Nama Lengkap</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Nama lengkap Anda"
+                  required
+                  className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors"
+                />
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium mb-1.5 block">Email</label>
               <input
@@ -309,10 +353,11 @@ function AuthPage({ setPage, initialTab, setUser, userAccounts, adminAccounts }:
                 className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors"
               />
             </div>
+
             <div>
               <div className="flex justify-between mb-1.5">
                 <label className="text-sm font-medium">Password</label>
-                <button type="button" className="text-xs text-primary hover:underline">Lupa password?</button>
+                {tab === "login" && <button type="button" className="text-xs text-primary hover:underline">Lupa password?</button>}
               </div>
               <input
                 type="password"
@@ -323,12 +368,13 @@ function AuthPage({ setPage, initialTab, setUser, userAccounts, adminAccounts }:
                 className="w-full px-4 py-3 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors"
               />
             </div>
+
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-all hover:shadow-[0_4px_16px_rgba(196,149,74,0.4)] mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {loading ? "Memeriksa..." : "Masuk"}
+              {loading ? "Memproses..." : (tab === "register" ? "Daftar Sekarang" : "Masuk")}
             </button>
           </form>
           <div className="mt-6 p-3 bg-muted/60 border border-border rounded-xl text-center">
@@ -487,6 +533,18 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
       setDeleteTarget(null)
     }
   }
+
+  // ✅ Logika sama seperti header dashboard: admin → editor, pengguna → checkout frontend
+  const handleCreateInvitation = () => {
+    const role = (user.role ?? "").toLowerCase()
+    // ✅ BARU: admin masuk ke form data undangan dulu (bukan langsung editor)
+    if (role.includes("admin")) {
+      setPage("create-invitation")
+    } else {
+      window.location.href = "http://localhost:5173/?page=checkout"
+    }
+  }
+
   const handleNav = (label: string) => {
     setActiveMenu(label)
     if (label === "Dashboard") setPage("dashboard")
@@ -543,7 +601,7 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
               <p className="text-[11px] text-muted-foreground hidden sm:block">Kelola semua undangan digital Anda</p>
             </div>
           </div>
-          <button onClick={() => setPage("checkout")} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all hover:shadow-[0_2px_12px_rgba(196,149,74,0.35)]">
+          <button onClick={handleCreateInvitation} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all hover:shadow-[0_2px_12px_rgba(196,149,74,0.35)]">
             <Plus className="w-3.5 h-3.5" /> Buat Undangan
           </button>
         </header>
@@ -551,7 +609,7 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
           <div className="bg-card rounded-2xl p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Undangan Saya</h3>
-              <button onClick={() => setPage("checkout")} className="text-xs text-primary flex items-center gap-1 hover:underline">
+              <button onClick={handleCreateInvitation} className="text-xs text-primary flex items-center gap-1 hover:underline">
                 <Plus className="w-3 h-3" /> Buat baru
               </button>
             </div>
@@ -590,7 +648,7 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
                     </div>
                   )
                 })}
-                <button onClick={() => setPage("checkout")} className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                <button onClick={handleCreateInvitation} className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground">
                   <Plus className="w-6 h-6" />
                   <span className="text-xs">Buat Undangan Baru</span>
                 </button>
@@ -628,7 +686,7 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     fetch('http://localhost:5000/api/guests')
-      .then(r => r.json())
+      .then(response => response.json())
       .then(data => {
         if (data.success) setGuests(data.data)
         setLoading(false)
@@ -720,17 +778,17 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-5">
-          {/* ✅ Kartu statistik dihitung dari data asli */}
+          {/* ✅ Kartu statistik dari data asli */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
-              { label: "Total Tamu", value: guests.length, color: "text-blue-500 bg-blue-50", icon: Users },
-              { label: "Hadir", value: guests.filter(g => g.rsvp_status === "Hadir").length, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
-              { label: "Tidak Hadir", value: guests.filter(g => g.rsvp_status === "Tidak Hadir").length, color: "text-red-500 bg-red-50", icon: XCircle },
-              { label: "Masih Ragu", value: guests.filter(g => g.rsvp_status === "Masih Ragu").length, color: "text-yellow-500 bg-yellow-50", icon: Clock },
+              { label: "Total Tamu", value: loading ? "…" : guests.length, color: "text-blue-500 bg-blue-50", icon: Users },
+              { label: "Hadir", value: loading ? "…" : guests.filter(g => g.rsvp_status === "Hadir").length, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
+              { label: "Tidak Hadir", value: loading ? "…" : guests.filter(g => g.rsvp_status === "Tidak Hadir").length, color: "text-red-500 bg-red-50", icon: XCircle },
+              { label: "Masih Ragu", value: loading ? "…" : guests.filter(g => g.rsvp_status === "Masih Ragu").length, color: "text-yellow-500 bg-yellow-50", icon: Clock },
             ].map(({ label, value, color, icon: Icon }, i) => (
               <div key={i} className="bg-card rounded-xl p-4 border border-border">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
-                <p className="text-lg font-bold">{loading ? "…" : value}</p>
+                <p className="text-lg font-bold">{value}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
               </div>
             ))}
@@ -783,7 +841,7 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
 }
 
 
-// ─── RSVP PAGE ──────────────────────────────────────────────────────────────
+/// ─── RSVP PAGE ──────────────────────────────────────────────────────────────
 function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
   setPage: (p: Page) => void
   activeMenu: string
@@ -882,6 +940,7 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-5">
+          {/* ✅ Kartu statistik dari data asli */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
               { label: "Total RSVP", value: loading ? "…" : rsvps.length, color: "text-blue-500 bg-blue-50", icon: MessageCircle },
@@ -915,7 +974,7 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
                   <div key={rsvp.id} className="p-4 hover:bg-muted/30 transition-colors">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{rsvp.name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
+                        <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{String(rsvp.name ?? "?").split(" ").map((n: string) => n[0]).join("").substring(0, 2)}</div>
                         <div>
                           <p className="text-sm font-semibold">{rsvp.name}</p>
                           <p className="text-[10px] text-muted-foreground">{timeAgo(rsvp.created_at)} • {rsvp.number_of_guests > 0 ? `${rsvp.number_of_guests} orang` : 'Tanpa tamu'}</p>
@@ -935,7 +994,7 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
   )
 }
 
-/// ─── DIGITAL ENVELOPE PAGE ───────────────────────────────────────────────────
+// ─── DIGITAL ENVELOPE PAGE ───────────────────────────────────────────────────
 function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
   setPage: (p: Page) => void
   activeMenu: string
@@ -959,10 +1018,10 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
         setLoading(false)
       })
   }, [])
-  // ✅ amount (decimal) dari Postgres datang sebagai string → konversi ke number
+  // ✅ amount dari Postgres (decimal) datang sebagai string → konversi
   const toNumber = (v: any) => Number(v) || 0
-  // ✅ Tanggal singkat Indonesia dari created_at
-  const fmtDate = (iso: string) => {
+  // ✅ Tanggal singkat Indonesia
+  const fmtTanggal = (iso: string) => {
     if (!iso) return "-"
     return new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
   }
@@ -1030,6 +1089,7 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-5">
+          {/* ✅ Kartu statistik dari data asli */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
               { label: "Total Amplop", value: loading ? "…" : envelopes.length, color: "text-blue-500 bg-blue-50", icon: Gift },
@@ -1062,10 +1122,10 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
                 filteredEnvelopes.map((env) => (
                   <div key={env.id} className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{env.sender_name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{String(env.name ?? "?").split(" ").map((n: string) => n[0]).join("").substring(0, 2)}</div>
                       <div>
                         <p className="text-sm font-semibold">{env.sender_name}</p>
-                        <p className="text-[10px] text-muted-foreground">{fmtDate(env.created_at)} • "{env.message}"</p>
+                        <p className="text-[10px] text-muted-foreground">{fmtTanggal(env.created_at)} • "{env.message}"</p>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-4">
@@ -1084,7 +1144,7 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
 }
 
 
-// ─── QR CHECK-IN PAGE ────────────────────────────────────────────────────────
+// ─── QR CHECK-IN PAGE ───────────────────────────────────────────────────────
 function QRCheckInPage({ setPage, activeMenu, setActiveMenu, user }: {
   setPage: (p: Page) => void
   activeMenu: string
@@ -1094,20 +1154,62 @@ function QRCheckInPage({ setPage, activeMenu, setActiveMenu, user }: {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("Semua")
-  const MOCK_GUESTS = [
-    { id: 1, name: "Budi Santoso", table: "Meja 1", status: "Sudah Check-In", time: "14:30" },
-    { id: 2, name: "Siti Aminah", table: "Meja 2", status: "Belum Check-In", time: "-" },
-    { id: 3, name: "Andi Pratama", table: "Meja 1", status: "Sudah Check-In", time: "14:15" },
-    { id: 4, name: "Dewi Lestari", table: "Meja 3", status: "Belum Check-In", time: "-" },
-    { id: 5, name: "Rizky Ramadhan", table: "Meja 2", status: "Sudah Check-In", time: "15:00" },
-  ]
-  const filteredGuests = MOCK_GUESTS.filter(g => {
+  // ✅ BARU: data tamu asli dari backend (tabel guests)
+  const [guests, setGuests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [checkingIn, setCheckingIn] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('http://localhost:5000/api/guests')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) setGuests(data.data)
+        setLoading(false)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil data tamu:', error)
+        setLoading(false)
+      })
+  }, [])
+  // ✅ BARU: tombol Check-In → PATCH ke backend → update tabel guests
+  const handleCheckIn = async (guest: any) => {
+    if (guest.check_in_status === "Sudah Check-In") {
+      toast.info(`${guest.name} sudah check-in sebelumnya.`)
+      return
+    }
+    setCheckingIn(guest.id)
+    try {
+      const res = await fetch(`http://localhost:5000/api/guests/${guest.id}/checkin`, { method: "PATCH" })
+      const data = await res.json()
+      if (data.success) {
+        // ✅ Update state lokal supaya UI langsung berubah tanpa reload
+        setGuests(prev => prev.map(g =>
+          g.id === guest.id
+            ? { ...g, check_in_status: "Sudah Check-In", check_in_time: data.data.check_in_time }
+            : g
+        ))
+        toast.success(data.message)
+      } else {
+        toast.info(data.message || "Gagal check-in.")
+      }
+    } catch (error) {
+      console.error("Gagal check-in:", error)
+      toast.error("Tidak dapat terhubung ke server.")
+    } finally {
+      setCheckingIn(null)
+    }
+  }
+  // ✅ Format waktu check-in
+  const fmtTime = (iso: string) => {
+    if (!iso) return "-"
+    return new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+  }
+  const filteredGuests = guests.filter(g => {
     const matchSearch = g.name.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filter === "Semua" || g.status === filter
+    const matchFilter = filter === "Semua" || g.check_in_status === filter
     return matchSearch && matchFilter
   })
-  const checkedInCount = MOCK_GUESTS.filter(g => g.status === "Sudah Check-In").length
-  const pendingCount = MOCK_GUESTS.filter(g => g.status === "Belum Check-In").length
+  const checkedInCount = guests.filter(g => g.check_in_status === "Sudah Check-In").length
+  const pendingCount = guests.filter(g => g.check_in_status === "Belum Check-In").length
   const handleNav = (label: string) => {
     setActiveMenu(label)
     if (label === "Dashboard") setPage("dashboard")
@@ -1169,12 +1271,13 @@ function QRCheckInPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-5">
+          {/* ✅ Kartu statistik dihitung dari data asli */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
-              { label: "Total Tamu", value: MOCK_GUESTS.length, color: "text-blue-500 bg-blue-50", icon: Users },
-              { label: "Sudah Check-In", value: checkedInCount, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
-              { label: "Belum Check-In", value: pendingCount, color: "text-yellow-500 bg-yellow-50", icon: Clock },
-              { label: "Persentase", value: `${Math.round((checkedInCount / MOCK_GUESTS.length) * 100)}%`, color: "text-purple-500 bg-purple-50", icon: TrendingUp },
+              { label: "Total Tamu", value: loading ? "…" : guests.length, color: "text-blue-500 bg-blue-50", icon: Users },
+              { label: "Sudah Check-In", value: loading ? "…" : checkedInCount, color: "text-green-500 bg-green-50", icon: CheckCircle2 },
+              { label: "Belum Check-In", value: loading ? "…" : pendingCount, color: "text-yellow-500 bg-yellow-50", icon: Clock },
+              { label: "Persentase", value: loading ? "…" : guests.length > 0 ? `${Math.round((checkedInCount / guests.length) * 100)}%` : "0%", color: "text-primary bg-primary/10", icon: TrendingUp },
             ].map(({ label, value, color, icon: Icon }, i) => (
               <div key={i} className="bg-card rounded-xl p-4 border border-border">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
@@ -1199,27 +1302,42 @@ function QRCheckInPage({ setPage, activeMenu, setActiveMenu, user }: {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    {["Nama Tamu", "Meja", "Status", "Waktu", "QR Code", ""].map(h => (
+                    {["Nama Tamu", "Meja", "Status", "Waktu", "QR", "Aksi"].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredGuests.map((guest, i) => (
-                    <tr key={guest.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
-                      <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">{guest.name}</td>
-                      <td className="px-4 py-3 text-xs whitespace-nowrap">{guest.table}</td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${guest.status === "Sudah Check-In" ? "bg-green-50 text-green-600 border-green-200" : "bg-yellow-50 text-yellow-600 border-yellow-200"}`}>{guest.status}</span></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{guest.time}</td>
-                      <td className="px-4 py-3"><div className="w-8 h-8 bg-white border border-border rounded flex items-center justify-center"><QrCode className="w-5 h-5 text-foreground" /></div></td>
-                      <td className="px-4 py-3">
-                        <button onClick={() => { if (guest.status === "Belum Check-In") { toast.success(`${guest.name} berhasil di-check-in!`) } else { toast.info(`${guest.name} sudah check-in.`) } }} className="text-[10px] text-primary hover:underline whitespace-nowrap">{guest.status === "Belum Check-In" ? "Check-In" : "Detail"}</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {loading ? (
+                    <tr><td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">Memuat data tamu...</td></tr>
+                  ) : (
+                    filteredGuests.map((guest, i) => (
+                      <tr key={guest.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                        <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">{guest.name}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{guest.table_number ?? "-"}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap ${guest.check_in_status === "Sudah Check-In" ? "bg-green-50 text-green-600 border-green-200" : "bg-yellow-50 text-yellow-600 border-yellow-200"}`}>{guest.check_in_status}</span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtTime(guest.check_in_time)}</td>
+                        <td className="px-4 py-3"><div className="w-8 h-8 bg-white border border-border rounded flex items-center justify-center"><QrCode className="w-5 h-5 text-foreground" /></div></td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleCheckIn(guest)}
+                            disabled={checkingIn === guest.id}
+                            className={`text-[10px] font-medium px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${guest.check_in_status === "Sudah Check-In"
+                              ? "text-muted-foreground bg-muted border border-border cursor-default"
+                              : "text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-60"
+                              }`}
+                          >
+                            {checkingIn === guest.id ? "Proses..." : guest.check_in_status === "Sudah Check-In" ? "✓ Sudah" : "Check-In"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
-              {filteredGuests.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada tamu ditemukan</div>}
+              {!loading && filteredGuests.length === 0 && <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada tamu ditemukan</div>}
             </div>
           </div>
         </main>
@@ -1501,19 +1619,78 @@ function SettingsPage({ setPage, activeMenu, setActiveMenu, user, setUser }: {
   const [profile, setProfile] = useState({ name: user.name, email: user.email, phone: user.phone })
   const [passwords, setPasswords] = useState({ old: "", new: "", confirm: "" })
   const [notifications, setNotifications] = useState({ email: true, whatsapp: true, marketing: false })
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (profile.name.length < 3) { toast.error("Nama minimal 3 karakter!"); return }
     if (!profile.email.includes("@")) { toast.error("Email tidak valid!"); return }
-    // ✅ PERUBAHAN: update data user terpusat → semua sidebar ikut berubah
-    setUser({ name: profile.name, email: profile.email, phone: profile.phone })
-    toast.success("Profil berhasil diperbarui!")
+
+    // Pastikan akun punya ID dari database (akun demo tidak punya ID)
+    if (!user.id) {
+      toast.error("Akun ini tidak terhubung ke database. Silakan logout dan login ulang dengan akun terdaftar.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone
+        })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        // Update state lokal supaya nama di sidebar langsung berubah
+        setUser({ ...user, name: profile.name, email: profile.email, phone: profile.phone })
+        toast.success("Profil berhasil disimpan ke database!")
+      } else {
+        toast.error(data.message || "Gagal menyimpan profil (email mungkin sudah dipakai akun lain).")
+      }
+    } catch (e) {
+      console.error("Gagal menyimpan profil:", e)
+      toast.error("Tidak dapat terhubung ke server. Pastikan backend berjalan!")
+    }
   }
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (passwords.old.length < 6) { toast.error("Password lama minimal 6 karakter!"); return }
     if (passwords.new.length < 6) { toast.error("Password baru minimal 6 karakter!"); return }
     if (passwords.new !== passwords.confirm) { toast.error("Konfirmasi password tidak cocok!"); return }
-    toast.success("Password berhasil diperbarui!")
-    setPasswords({ old: "", new: "", confirm: "" })
+    if (!user.id) { toast.error("Akun tidak terhubung ke database."); return }
+
+    try {
+      // 1. Verifikasi password lama dulu lewat endpoint login
+      const checkRes = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, password: passwords.old })
+      })
+      const checkData = await checkRes.json()
+
+      if (!checkData.success) {
+        toast.error("Password lama salah!")
+        return
+      }
+
+      // 2. Kalau benar, update password baru ke database
+      const res = await fetch(`http://localhost:5000/api/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: passwords.new })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success("Password berhasil diperbarui di database!")
+        setPasswords({ old: "", new: "", confirm: "" }) // Kosongkan form
+      } else {
+        toast.error(data.message || "Gagal mengubah password.")
+      }
+    } catch (e) {
+      console.error("Gagal mengganti password:", e)
+      toast.error("Tidak dapat terhubung ke server.")
+    }
   }
   const ToggleSwitch = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
     <button onClick={onChange} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted border border-border"}`}>
@@ -1677,7 +1854,7 @@ function SettingsPage({ setPage, activeMenu, setActiveMenu, user, setUser }: {
   )
 }
 
-// ─── DASHBOARD PAGE ─────────────────────────────────────────────────────────
+/// ─── DASHBOARD PAGE ─────────────────────────────────────────────────────────
 function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }: {
   setPage: (p: Page) => void
   activeMenu: string
@@ -1687,12 +1864,11 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
 }) {
   const [invitations, setInvitations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  // ✅ BARU: ringkasan statistik asli dari backend
   const [summary, setSummary] = useState<any>(null)
-  // ✅ State untuk hapus undangan
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [txLoading, setTxLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
-  // Ambil data undangan dari Backend saat komponen pertama kali dimuat
   useEffect(() => {
     fetch('http://localhost:5000/api/invitations')
       .then(response => response.json())
@@ -1707,7 +1883,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
         setLoading(false)
       })
   }, [])
-  // ✅ BARU: ambil ringkasan statistik dari endpoint dashboard
   useEffect(() => {
     fetch('http://localhost:5000/api/dashboard/summary')
       .then(response => response.json())
@@ -1718,16 +1893,24 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
         console.error('Gagal mengambil ringkasan:', error)
       })
   }, [])
-  // ✅ Helper format angka ribuan gaya Indonesia (2847 → "2.847")
-  const fmtAngka = (n: number) => (n ?? 0).toLocaleString("id-ID")
-  // ✅ Format rupiah ringkas (2200000 → "Rp 2,2jt")
+  useEffect(() => {
+    fetch('http://localhost:5000/api/transactions')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) setTransactions(data.data)
+        setTxLoading(false)
+      })
+      .catch(error => {
+        console.error('Gagal mengambil transaksi:', error)
+        setTxLoading(false)
+      })
+  }, [])
+  const fmtAngka = (n: number) => n.toLocaleString("id-ID")
   const fmtRingkas = (n: number) => {
-    const v = n ?? 0
-    if (v >= 1000000) return `Rp ${(v / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 1 })}jt`
-    if (v >= 1000) return `Rp ${(v / 1000).toLocaleString("id-ID", { maximumFractionDigits: 0 })}rb`
-    return fmt(v)
+    if (n >= 1000000) return `Rp ${(n / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`
+    if (n >= 1000) return `Rp ${(n / 1000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} rb`
+    return fmt(n)
   }
-  // ✅ Waktu relatif untuk RSVP terbaru
   const timeAgo = (iso: string) => {
     if (!iso) return "-"
     const diff = Date.now() - new Date(iso).getTime()
@@ -1738,10 +1921,15 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
     if (hours < 24) return `${hours} jam lalu`
     return `${Math.floor(hours / 24)} hari lalu`
   }
-  const rsvpColor = (status: string) =>
-    status === "Hadir" ? "bg-green-50 text-green-600"
-      : status === "Tidak Hadir" ? "bg-red-50 text-red-500"
-        : "bg-yellow-50 text-yellow-600"
+  const fmtTanggal = (iso: string | null) => {
+    if (!iso) return "-"
+    return new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+  }
+  const toNum = (v: any) => Number(v) || 0
+  const txPaid = transactions.filter(t => t.status === "Paid")
+  const txPending = transactions.filter(t => t.status === "Pending")
+  const txFailed = transactions.filter(t => t.status === "Failed" || t.status === "Expired")
+  const totalPendapatan = txPaid.reduce((sum, t) => sum + toNum(t.total_amount), 0)
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return
     setDeleting(true)
@@ -1762,59 +1950,43 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
       setDeleteTarget(null)
     }
   }
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [txFilter, setTxFilter] = useState("Semua")
-  const handleMenu = (label: string) => {
-    setActiveMenu(label)
-    if (label === "Dashboard") {
-      setPage("dashboard")
-      setSidebarOpen(false)
-    } else if (label === "Template") {
-      setPage("templates")
-      setSidebarOpen(false)
-    } else if (label === "Undangan Saya") {
-      setPage("my-invitations")
-      setSidebarOpen(false)
-    } else if (label === "Edit Undangan") {
-      toast.info("Edit undangan yang sudah ada saat ini")
-      setPage("editor")
-      setSidebarOpen(false)
-    } else if (label === "Data Tamu") {
-      setPage("guest-data")
-      setSidebarOpen(false)
-    } else if (label === "RSVP") {
-      setPage("rsvp")
-      setSidebarOpen(false)
-    } else if (label === "Amplop Digital") {
-      setPage("digital-envelope")
-      setSidebarOpen(false)
-    } else if (label === "QR Check-In") {
-      setPage("qr-checkin")
-      setSidebarOpen(false)
-    } else if (label === "Domain") {
-      setPage("domain")
-      setSidebarOpen(false)
-    } else if (label === "Pengaturan") {
-      setPage("settings")
-      setSidebarOpen(false)
-    } else if (label === "Akses Admin") {
-      setPage("admin-access")
-      setSidebarOpen(false)
-    } else if (label === "Akses Pengguna") {
-      setPage("user-access")
-      setSidebarOpen(false)
-    } else if (label === "Transaksi") {
-      setPage("dashboard")
-      setSidebarOpen(false)
+  // ✅ Logika tombol "+ Buat Undangan" berdasarkan role login
+  const handleCreateInvitation = () => {
+    const role = (user.role ?? "").toLowerCase()
+    if (role.includes("admin")) {
+      setPage("create-invitation")
     } else {
-      toast.info(`Halaman ${label} akan segera hadir!`)
-      setSidebarOpen(false)
+      window.location.href = "http://localhost:5173/?page=checkout"
     }
   }
-  const filtered = txFilter === "Semua" ? MOCK_TRANSACTIONS : MOCK_TRANSACTIONS.filter(t => t.status === txFilter)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [txFilter, setTxFilter] = useState("Semua")
+  const [txSearch, setTxSearch] = useState("")
+  const handleMenu = (label: string) => {
+    setActiveMenu(label)
+    if (label === "Dashboard") { setPage("dashboard"); setSidebarOpen(false) }
+    else if (label === "Template") { setPage("templates"); setSidebarOpen(false) }
+    else if (label === "Undangan Saya") { setPage("my-invitations"); setSidebarOpen(false) }
+    else if (label === "Edit Undangan") { toast.info("Edit undangan yang sudah ada saat ini"); setPage("editor"); setSidebarOpen(false) }
+    else if (label === "Data Tamu") { setPage("guest-data"); setSidebarOpen(false) }
+    else if (label === "RSVP") { setPage("rsvp"); setSidebarOpen(false) }
+    else if (label === "Amplop Digital") { setPage("digital-envelope"); setSidebarOpen(false) }
+    else if (label === "QR Check-In") { setPage("qr-checkin"); setSidebarOpen(false) }
+    else if (label === "Domain") { setPage("domain"); setSidebarOpen(false) }
+    else if (label === "Pengaturan") { setPage("settings"); setSidebarOpen(false) }
+    else if (label === "Akses Admin") { setPage("admin-access"); setSidebarOpen(false) }
+    else if (label === "Akses Pengguna") { setPage("user-access"); setSidebarOpen(false) }
+    else if (label === "Transaksi") { setPage("dashboard"); setSidebarOpen(false) }
+    else { toast.info(`Halaman ${label} akan segera hadir!`); setSidebarOpen(false) }
+  }
+  const filtered = transactions.filter(t => {
+    const matchFilter = txFilter === "Semua" || t.status === txFilter
+    const q = txSearch.toLowerCase()
+    const matchSearch = q === "" || String(t.invoice_number).toLowerCase().includes(q) || String(t.customer_name).toLowerCase().includes(q)
+    return matchFilter && matchSearch
+  })
   return (
     <div className="flex h-screen bg-muted overflow-hidden font-sans">
-      {/* Sidebar */}
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
         <div className="px-5 py-5 border-b border-sidebar-border">
           <button onClick={() => window.location.href = "http://localhost:5173"} className="flex items-center gap-2">
@@ -1843,7 +2015,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
         </div>
       </aside>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-foreground/40 z-30 lg:hidden" />}
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 bg-card border-b border-border px-5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -1855,7 +2026,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
           </div>
           <div className="flex items-center gap-2">
             <button className="relative p-2 rounded-lg hover:bg-muted transition-colors"><Bell className="w-4 h-4" /><span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full" /></button>
-            <button onClick={() => setPage("checkout")} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all hover:shadow-[0_2px_12px_rgba(196,149,74,0.35)]">
+            <button onClick={handleCreateInvitation} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all hover:shadow-[0_2px_12px_rgba(196,149,74,0.35)]">
               <Plus className="w-3.5 h-3.5" /> Buat Undangan
             </button>
           </div>
@@ -1866,12 +2037,12 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                 <div>
                   <h2 className="font-semibold">Riwayat Transaksi</h2>
-                  <p className="text-xs text-muted-foreground">{MOCK_TRANSACTIONS.length} transaksi total</p>
+                  <p className="text-xs text-muted-foreground">{txLoading ? "Memuat..." : `${transactions.length} transaksi total`}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <input placeholder="Cari transaksi..." className="pl-8 pr-3 py-2 text-xs border border-border rounded-lg bg-card outline-none focus:border-primary w-40" />
+                    <input value={txSearch} onChange={e => setTxSearch(e.target.value)} placeholder="Cari invoice / pelanggan..." className="pl-8 pr-3 py-2 text-xs border border-border rounded-lg bg-card outline-none focus:border-primary w-44" />
                   </div>
                   <div className="flex bg-card border border-border rounded-lg overflow-hidden">
                     {["Semua", "Paid", "Pending", "Expired", "Failed"].map(f => (
@@ -1891,33 +2062,37 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((tx, i) => (
-                        <tr key={tx.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
-                          <td className="px-4 py-3 text-xs font-mono text-primary">{tx.id}</td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{tx.date}</td>
-                          <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">{tx.customer}</td>
-                          <td className="px-4 py-3"><span className="text-xs bg-secondary px-2 py-1 rounded-full">{tx.package}</span></td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{tx.method}</td>
-                          <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">{fmt(tx.amount)}</td>
-                          <td className="px-4 py-3"><StatusBadge status={tx.status} /></td>
-                          <td className="px-4 py-3">
-                            <button className="text-[10px] text-primary hover:underline whitespace-nowrap">Detail</button>
-                          </td>
-                        </tr>
-                      ))}
+                      {txLoading ? (
+                        <tr><td colSpan={8} className="py-12 text-center text-muted-foreground text-sm">Memuat data transaksi...</td></tr>
+                      ) : (
+                        filtered.map((tx, i) => (
+                          <tr key={tx.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                            <td className="px-4 py-3 text-xs font-mono text-primary">{tx.invoice_number}</td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{fmtTanggal(tx.payment_date || tx.created_at)}</td>
+                            <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">{tx.customer_name}</td>
+                            <td className="px-4 py-3"><span className="text-xs bg-secondary px-2 py-1 rounded-full">{tx.package_name}</span></td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{tx.payment_method}</td>
+                            <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap">{fmt(toNum(tx.total_amount))}</td>
+                            <td className="px-4 py-3"><StatusBadge status={tx.status} /></td>
+                            <td className="px-4 py-3">
+                              <button onClick={() => toast.info(`Detail transaksi ${tx.invoice_number} akan segera hadir!`)} className="text-[10px] text-primary hover:underline whitespace-nowrap">Detail</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
-                {filtered.length === 0 && (
+                {!txLoading && filtered.length === 0 && (
                   <div className="py-12 text-center text-muted-foreground text-sm">Tidak ada transaksi ditemukan</div>
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
                 {[
-                  { label: "Total Pendapatan", value: "Rp 1.343.000", icon: TrendingUp, color: "text-green-500 bg-green-50" },
-                  { label: "Transaksi Berhasil", value: "4", icon: CheckCircle2, color: "text-primary bg-primary/10" },
-                  { label: "Menunggu Bayar", value: "1", icon: Clock, color: "text-yellow-500 bg-yellow-50" },
-                  { label: "Transaksi Gagal", value: "2", icon: XCircle, color: "text-red-500 bg-red-50" },
+                  { label: "Total Pendapatan", value: txLoading ? "…" : fmt(totalPendapatan), icon: TrendingUp, color: "text-green-500 bg-green-50" },
+                  { label: "Transaksi Berhasil", value: txLoading ? "…" : String(txPaid.length), icon: CheckCircle2, color: "text-primary bg-primary/10" },
+                  { label: "Menunggu Bayar", value: txLoading ? "…" : String(txPending.length), icon: Clock, color: "text-yellow-500 bg-yellow-50" },
+                  { label: "Gagal / Expired", value: txLoading ? "…" : String(txFailed.length), icon: XCircle, color: "text-red-500 bg-red-50" },
                 ].map(({ label, value, icon: Icon, color }, i) => (
                   <div key={i} className="bg-card rounded-xl p-4 border border-border">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
@@ -1929,7 +2104,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
             </div>
           ) : (
             <>
-              {/* ✅ 4 kartu statistik — kini ASLI dari /api/dashboard/summary */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                 {[
                   { label: "Total Kunjungan", value: summary ? fmtAngka(summary.totalVisits) : "…", icon: TrendingUp, colorCls: "text-blue-500 bg-blue-50" },
@@ -1965,20 +2139,19 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-                {/* ✅ RSVP Terbaru — kini ASLI dari database */}
                 <div className="bg-card rounded-2xl p-5 border border-border">
                   <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">RSVP Terbaru</h3><button onClick={() => setPage("rsvp")} className="text-xs text-primary hover:underline">Lihat semua</button></div>
-                  {!summary || (summary.rsvpRecent ?? []).length === 0 ? (
+                  {!summary || !summary.recentRsvps || summary.recentRsvps.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground text-xs">Belum ada RSVP masuk.</div>
                   ) : (
                     <div className="space-y-3">
-                      {summary.rsvpRecent.map((r: any, i: number) => (
+                      {summary.recentRsvps.map((r: any, i: number) => (
                         <div key={i} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center text-[11px] font-semibold text-primary flex-shrink-0">{(r.name ?? "?")[0]}</div>
                             <div><p className="text-xs font-medium">{r.name}</p><p className="text-[10px] text-muted-foreground">{timeAgo(r.created_at)}</p></div>
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${rsvpColor(r.attendance_status)}`}>{r.attendance_status}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${r.attendance_status === "Hadir" ? "bg-green-50 text-green-600" : r.attendance_status === "Tidak Hadir" ? "bg-red-50 text-red-500" : "bg-yellow-50 text-yellow-600"}`}>{r.attendance_status}</span>
                         </div>
                       ))}
                     </div>
@@ -1988,7 +2161,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
               <div className="bg-card rounded-2xl p-5 border border-border">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold">Undangan Saya</h3>
-                  <button onClick={() => window.location.href = "http://localhost:5174"} className="text-xs text-primary flex items-center gap-1 hover:underline">
+                  <button onClick={handleCreateInvitation} className="text-xs text-primary flex items-center gap-1 hover:underline">
                     <Plus className="w-3 h-3" /> Buat baru
                   </button>
                 </div>
@@ -2048,8 +2221,10 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                         </div>
                       )
                     })}
-                    <button onClick={() => window.location.href = "http://localhost:5174"}
-                      className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                    <button
+                      onClick={handleCreateInvitation}
+                      className="border-2 border-dashed border-border rounded-xl min-h-[120px] flex flex-col items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                    >
                       <Plus className="w-6 h-6" />
                       <span className="text-xs">Buat Undangan Baru</span>
                     </button>
@@ -2060,7 +2235,6 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
           )}
         </main>
       </div>
-      {/* ✅ dialog peringatan hapus */}
       <ConfirmDeleteDialog
         open={deleteTarget !== null}
         title="Hapus Undangan?"
@@ -2633,6 +2807,149 @@ function EditorPage({ setPage, initialInvitation }: { setPage: (p: Page) => void
   )
 }
 
+// ─── CREATE INVITATION PAGE (form data → draft) ─────────────────────────────
+function CreateInvitationPage({ setPage, user, openEditor }: {
+  setPage: (p: Page) => void
+  user: UserInfo
+  openEditor: (inv?: any) => void
+}) {
+  const [form, setForm] = useState({ bride: "", groom: "", date: "", name: user.name, email: user.email, wa: "" })
+  const [saving, setSaving] = useState(false)
+  const [created, setCreated] = useState<any | null>(null)
+
+  const handleSubmit = async () => {
+    if (!form.bride.trim() || !form.groom.trim()) { toast.error("Nama mempelai wanita & pria wajib diisi!"); return }
+    if (!form.date) { toast.error("Tanggal pernikahan wajib diisi!"); return }
+    if (form.name.length < 3) { toast.error("Nama pemesan minimal 3 karakter!"); return }
+    if (!form.email.includes("@")) { toast.error("Email tidak valid!"); return }
+    if (form.wa.length < 8) { toast.error("Nomor WhatsApp minimal 8 digit!"); return }
+    setSaving(true)
+    try {
+      const res = await fetch("http://localhost:5000/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          coupleName: `${form.bride.trim()} & ${form.groom.trim()}`,
+          theme: "Elegant",
+          status: "Draft",
+          visits: 0,
+          settings: {
+            brideName: form.bride.trim(),
+            groomName: form.groom.trim(),
+            weddingDate: form.date,
+            pemesan: { name: form.name, email: form.email, wa: form.wa },
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCreated(data.data)
+        toast.success("Draft undangan berhasil dibuat!")
+      } else {
+        toast.error(data.message || "Gagal membuat draft undangan.")
+      }
+    } catch (error) {
+      console.error("Gagal membuat draft:", error)
+      toast.error("Tidak dapat terhubung ke server. Pastikan backend NestJS berjalan!")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Setelah draft terbentuk: tampilkan tombol lanjutan ──
+  if (created) {
+    const coupleLabel = created.coupleName ?? created.couple_name ?? `${form.bride} & ${form.groom}`
+    return (
+      <div className="min-h-screen bg-secondary font-sans flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-lg bg-card rounded-2xl border border-border p-8 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-8 h-8 text-green-500" />
+          </div>
+          <h1 className="font-serif text-2xl font-semibold mb-2">Draft Undangan Dibuat!</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Draft <span className="font-semibold text-foreground">{coupleLabel}</span> sudah masuk ke
+            <span className="font-semibold text-foreground"> Undangan Saya</span> dengan status Draft.
+            Silakan lanjut edit atau lihat daftarnya.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button onClick={() => openEditor(created)} className="w-full py-3 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+              <Edit3 className="w-4 h-4" /> Halaman Selanjutnya: Edit Undangan
+            </button>
+            <button onClick={() => setPage("my-invitations")} className="w-full py-3 border border-border rounded-full text-sm hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
+              <FileText className="w-4 h-4" /> Lihat di Undangan Saya
+            </button>
+            <button onClick={() => { setCreated(null); setForm({ ...form, bride: "", groom: "", date: "" }) }} className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              + Buat draft lain
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Form input data ──
+  return (
+    <div className="min-h-screen bg-secondary font-sans">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border">
+        <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
+          <button onClick={() => setPage("dashboard")} className="flex items-center gap-2">
+            <Heart className="w-4 h-4 text-primary fill-primary/20" />
+            <span className="font-serif text-lg font-semibold italic">Invito</span>
+          </button>
+          <button onClick={() => setPage("dashboard")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ChevronRight className="w-3.5 h-3.5 rotate-180" /> Kembali ke Dashboard
+          </button>
+        </div>
+      </header>
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold mb-1">Buat Undangan Baru</h1>
+          <p className="text-muted-foreground text-sm">Lengkapi data undangan dulu. Draft akan tersimpan & muncul di Undangan Saya, lalu bisa diedit.</p>
+        </div>
+        <div className="bg-card rounded-2xl p-6 border border-border">
+          <h2 className="font-semibold mb-4 flex items-center gap-2"><Heart className="w-4 h-4 text-primary" /> Detail Undangan</h2>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium mb-1.5 block">Nama Mempelai Wanita</label>
+              <input value={form.bride} onChange={e => setForm({ ...form, bride: e.target.value })} placeholder="Nama mempelai wanita" className="w-full px-3.5 py-2.5 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors" />
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1.5 block">Nama Mempelai Pria</label>
+              <input value={form.groom} onChange={e => setForm({ ...form, groom: e.target.value })} placeholder="Nama mempelai pria" className="w-full px-3.5 py-2.5 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium mb-1.5 block">Tanggal Pernikahan</label>
+              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-card rounded-2xl p-6 border border-border">
+          <h2 className="font-semibold mb-4 flex items-center gap-2"><User className="w-4 h-4 text-primary" /> Data Pemesan</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium mb-1.5 block">Nama Lengkap</label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors" />
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1.5 block">Alamat Email</label>
+              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors" />
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1.5 block">Nomor WhatsApp</label>
+              <input type="tel" value={form.wa} onChange={e => setForm({ ...form, wa: e.target.value })} placeholder="08xxxxxxxxxx" className="w-full px-3.5 py-2.5 bg-input-background border border-border rounded-xl text-sm outline-none focus:border-primary transition-colors" />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button onClick={() => setPage("dashboard")} className="flex-1 py-3 border border-border rounded-full text-sm hover:border-primary hover:text-primary transition-all">Batal</button>
+          <button onClick={handleSubmit} disabled={saving} className="flex-1 py-3 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+            {saving ? "Menyimpan..." : "Simpan sebagai Draft"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─── CHECKOUT PAGE ────────────────────────────────────────────────────────────
 function CheckoutPage({ setPage }: { setPage: (p: Page) => void }) {
@@ -3139,553 +3456,145 @@ type AdminAccount = {
   password: string
 }
 type AdminModule = "users" | "content" | "system" | "monitor"
-function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, accounts, setAccounts, adminAccounts, setAdminAccounts }: {
+// ─── ADMIN ACCESS PAGE ──────────────────────────────────────────────────────
+function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }: {
   setPage: (p: Page) => void
   activeMenu: string
   setActiveMenu: (m: string) => void
   user: UserInfo
-  accounts: UserAccount[]
-  setAccounts: (a: UserAccount[]) => void
-  adminAccounts: AdminAccount[]
-  setAdminAccounts: (a: AdminAccount[]) => void
+  onChanged: () => void
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // ✅ "panel" = tabel & modul admin (tampil pertama kali), "form" = buat/edit akun
   const [view, setView] = useState<"panel" | "form">("panel")
-  const [activeModule, setActiveModule] = useState<AdminModule>("users")
-  // ✅ Tipe akun yang dibuat lewat tombol Create (admin / pengguna)
-  const [createType, setCreateType] = useState<"admin" | "user">("admin")
-  const [showCreateMenu, setShowCreateMenu] = useState(false)
-  // ✅ PERBAIKAN: Admin Utama = akun yang sedang login (turunan) + akun admin buatan tersimpan di App (awet & bisa login)
-  const admins: AdminAccount[] = [
-    { id: 1, name: user.name, email: user.email, photo: null, role: "Admin Utama", password: "" },
-    ...adminAccounts,
-  ]
-  // ✅ Form kini punya field role
+  const [activeModule, setActiveModule] = useState<"users" | "content" | "system" | "monitor">("users")
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "Admin" })
   const [showPassword, setShowPassword] = useState(false)
-  const [photo, setPhoto] = useState<string | null>(null)
-  const [editing, setEditing] = useState<{ type: "admin" | "user"; id: number } | null>(null)
-  const [selected, setSelected] = useState<{ type: "admin" | "user"; id: number } | null>(null)
-  // ✅ Modul Kelola Konten
-  const [contentItems, setContentItems] = useState([
-    { id: 1, name: "Undangan Anisa & Raka", kind: "Undangan", active: true },
-    { id: 2, name: "Tema Elegant", kind: "Tema", active: true },
-    { id: 3, name: "Tema Luxury", kind: "Tema", active: false },
-    { id: 4, name: "Halaman RSVP", kind: "Halaman", active: true },
-  ])
-  // ✅ Modul Pengaturan Sistem
-  const [system, setSystem] = useState({ maintenance: false, twoFA: true, publicReg: true, timeout: 30 })
-  // ✅ Modul Pantau Operasional
-  const [activity, setActivity] = useState([
-    { id: 1, time: "09:12", actor: user.name, action: "Login ke panel admin" },
-    { id: 2, time: "09:05", actor: "Sistem", action: "Backup harian selesai" },
-    { id: 3, time: "08:47", actor: "Sistem", action: "Sinkronisasi data undangan" },
-  ])
-  const MODULES: { id: AdminModule; title: string; desc: string; icon: any }[] = [
-    { id: "users", title: "Kelola Pengguna", desc: "Atur akun, peran (roles), dan izin akses pengguna", icon: Users },
-    { id: "content", title: "Kelola Konten", desc: "Tambah, ubah, atau hapus data dan informasi", icon: FileText },
-    { id: "system", title: "Pengaturan Sistem", desc: "Konfigurasi dasar aplikasi dan keamanan", icon: Settings },
-    { id: "monitor", title: "Pantau Operasional", desc: "Lihat aktivitas sistem secara langsung", icon: TrendingUp },
-  ]
-  // ✅ Akun yang sedang dikerjakan di form (untuk edit ikut tipe akun yang dipilih)
-  const targetType: "admin" | "user" = editing ? editing.type : createType
-  const roleOptions = targetType === "admin"
-    ? ["Admin Utama", "Admin", "Editor", "Marketing", "Viewer"]
-    : ["Pengguna", "VIP"]
-  const logActivity = (action: string) => {
-    const time = new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-    setActivity(prev => [{ id: Date.now(), time, actor: user.name, action }, ...prev])
+  const [editing, setEditing] = useState<null | { type: "admin" | "user"; id: number }>(null)
+  const [selected, setSelected] = useState<null | { type: "admin" | "user"; id: number }>(null)
+  const [targetType, setTargetType] = useState<"admin" | "user">("admin")
+  const [dbAdmins, setDbAdmins] = useState<AdminAccount[]>([])
+  const [dbUsers, setDbUsers] = useState<UserAccount[]>([])
+  const [activityLog, setActivityLog] = useState<string[]>([])
+  const logActivity = (msg: string) => setActivityLog(l => [`${new Date().toLocaleTimeString("id-ID")} — ${msg}`, ...l])
+  const nav = (label: string) => { setActiveMenu(label); if (label === "Dashboard") setPage("dashboard"); else if (label === "Template") setPage("templates"); else if (label === "Undangan Saya") setPage("my-invitations"); else if (label === "Edit Undangan") setPage("editor"); else if (label === "Data Tamu") setPage("guest-data"); else if (label === "RSVP") setPage("rsvp"); else if (label === "Amplop Digital") setPage("digital-envelope"); else if (label === "QR Check-In") setPage("qr-checkin"); else if (label === "Domain") setPage("domain"); else if (label === "Transaksi") setPage("dashboard"); else if (label === "Pengaturan") setPage("settings"); else if (label === "Akses Admin") setPage("admin-access"); else if (label === "Akses Pengguna") setPage("user-access"); else setPage("dashboard") }
+
+  const loadAccounts = async () => {
+    try {
+      const r = await fetch("http://localhost:5000/api/users")
+      const d = await r.json()
+      const rows = (d.success ? d.data : []).map((x: any) => ({ id: x.id, name: x.name, email: x.email, photo: x.photo_url ?? null, role: x.role ?? "Pengguna", password: "" }))
+      const ADMIN_ROLES = ["admin utama", "admin", "editor", "marketing", "viewer"]
+      const isAdm = (role: string) => ADMIN_ROLES.includes((role || "").toLowerCase())
+      setDbAdmins(rows.filter((x: any) => isAdm(x.role)))
+      setDbUsers(rows.filter((x: any) => !isAdm(x.role)))
+    } catch (e) { console.error(e) }
   }
-  const initials = (name: string) => name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
-  const selectedName = selected
-    ? (selected.type === "admin" ? admins.find(a => a.id === selected.id)?.name : accounts.find(a => a.id === selected.id)?.name) ?? ""
-    : ""
-  const ToggleSwitch = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <button onClick={onChange} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted border border-border"}`}>
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm ${checked ? "translate-x-4.5" : "translate-x-0.5"}`} />
-    </button>
-  )
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith("image/")) { toast.error("File harus berupa gambar!"); return }
-    if (file.size > 2 * 1024 * 1024) { toast.error("Ukuran foto maksimal 2MB!"); return }
-    const reader = new FileReader()
-    reader.onload = () => { setPhoto(reader.result as string); toast.success("Foto profil siap disimpan!") }
-    reader.readAsDataURL(file)
-    e.target.value = ""
-  }
-  // ✅ Create: pilih dulu tipe akun (admin / pengguna) dari dropdown
-  const startCreate = (type: "admin" | "user") => {
-    setEditing(null)
-    setCreateType(type)
-    setForm({ name: "", email: "", password: "", role: type === "admin" ? "Admin" : "Pengguna" })
-    setPhoto(null)
-    setShowPassword(false)
-    setShowCreateMenu(false)
-    setView("form")
-  }
-  // ✅ Pojok kiri bawah: edit akun yang dipilih di tabel (role ikut termuat)
+  useEffect(() => { loadAccounts() }, [])
+  const admins = dbAdmins
+
+  const openCreate = (t: "admin" | "user") => { setTargetType(t); setEditing(null); setForm({ name: "", email: "", password: "", role: t === "admin" ? "Admin" : "Pengguna" }); setView("form") }
   const openEditSelected = () => {
     if (!selected) { toast.error("Pilih akun pada tabel terlebih dahulu!"); return }
-    // ✅ Admin Utama mengikuti akun login → tidak bisa diedit
-    if (selected.type === "admin" && selected.id === 1) { toast.info("Admin Utama mengikuti akun yang sedang login dan tidak dapat diedit."); return }
-    const source = selected.type === "admin" ? admins.find(a => a.id === selected.id) : accounts.find(a => a.id === selected.id)
-    if (!source) return
-    setEditing(selected)
-    setForm({
-      name: source.name,
-      email: source.email,
-      password: "",
-      role: (source as any).role ?? (selected.type === "admin" ? "Admin" : "Pengguna"),
-    })
-    setPhoto(source.photo)
-    setShowPassword(false)
+    const row = (selected.type === "admin" ? dbAdmins : dbUsers).find((a: any) => a.id === selected.id)
+    if (!row) return
+    setTargetType(selected.type)
+    setEditing({ type: selected.type, id: row.id })
+    setForm({ name: row.name, email: row.email, password: "", role: row.role ?? (selected.type === "admin" ? "Admin" : "Pengguna") })
     setView("form")
   }
-  const handleSave = () => {
+  const handleSave = async () => {
     if (form.name.length < 3) { toast.error("Nama minimal 3 karakter!"); return }
     if (!form.email.includes("@")) { toast.error("Email tidak valid!"); return }
-    if (editing) {
-      if (form.password.length > 0 && form.password.length < 6) { toast.error("Password minimal 6 karakter!"); return }
-      if (editing.type === "admin") {
-        if (editing.id === 1) { toast.info("Admin Utama mengikuti akun yang sedang login dan tidak dapat diedit."); return }
-        if (admins.some(a => a.email.toLowerCase() === form.email.toLowerCase() && a.id !== editing.id)) { toast.error("Email sudah digunakan akun admin lain!"); return }
-        setAdminAccounts(adminAccounts.map(a => a.id === editing.id ? { ...a, name: form.name, email: form.email, photo, role: form.role, password: form.password || a.password } : a))
+    try {
+      if (editing) {
+        if (form.password.length > 0 && form.password.length < 6) { toast.error("Password minimal 6 karakter!"); return }
+        const res = await fetch(`http://localhost:5000/api/users/${editing.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: form.name, email: form.email, role: form.role, password: form.password || undefined }),
+        })
+        const d = await res.json()
+        if (d.success) { toast.success(`Akun "${form.name}" diperbarui!`); logActivity(`Edit akun ${form.name} (role: ${form.role})`) }
+        else toast.error(d.message || "Gagal memperbarui akun.")
       } else {
-        if (accounts.some(a => a.email.toLowerCase() === form.email.toLowerCase() && a.id !== editing.id)) { toast.error("Email sudah digunakan akun pengguna lain!"); return }
-        setAccounts(accounts.map(a => a.id === editing.id ? { ...a, name: form.name, email: form.email, photo, password: form.password || a.password, role: form.role } : a))
+        if (form.password.length < 6) { toast.error("Password minimal 6 karakter!"); return }
+        const res = await fetch("http://localhost:5000/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: targetType === "admin" ? form.role : "Pengguna" }),
+        })
+        const d = await res.json()
+        if (d.success) { toast.success(`Akun "${form.name}" berhasil dibuat!`); logActivity(`Buat akun ${form.name} (role: ${targetType === "admin" ? form.role : "Pengguna"})`) }
+        else toast.error(d.message || "Gagal membuat akun (email mungkin sudah terdaftar).")
       }
-      toast.success(`Akun "${form.name}" berhasil diperbarui!`)
-      logActivity(`Mengedit akun ${form.name} (role: ${form.role})`)
-    } else {
-      if (form.password.length < 6) { toast.error("Password minimal 6 karakter!"); return }
-      if (admins.some(a => a.email.toLowerCase() === form.email.toLowerCase()) || accounts.some(a => a.email.toLowerCase() === form.email.toLowerCase())) {
-        toast.error("Email sudah digunakan akun lain!")
-        return
-      }
-      if (targetType === "admin") {
-        // ✅ PERBAIKAN: password ikut disimpan → akun admin bisa dipakai login
-        setAdminAccounts([...adminAccounts, { id: Date.now(), name: form.name, email: form.email, photo, role: form.role, password: form.password }])
-        toast.success(`Akun admin "${form.name}" berhasil dibuat! Sekarang bisa dipakai untuk login.`)
-        logActivity(`Membuat akun admin ${form.name} (role: ${form.role})`)
-      } else {
-        setAccounts([...accounts, { id: Date.now(), name: form.name, email: form.email, photo, password: form.password, role: form.role }])
-        toast.success(`Akun pengguna "${form.name}" berhasil dibuat!`)
-        logActivity(`Membuat akun pengguna ${form.name} (role: ${form.role})`)
-      }
-    }
+      onChanged()
+      loadAccounts()
+    } catch (e) { console.error(e); toast.error("Tidak dapat terhubung ke server.") }
     setForm({ name: "", email: "", password: "", role: "Admin" })
-    setPhoto(null)
     setEditing(null)
     setSelected(null)
     setView("panel")
   }
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (!selected) { toast.error("Pilih akun pada tabel terlebih dahulu!"); return }
-    if (selected.type === "admin") {
-      const target = admins.find(a => a.id === selected.id)
-      if (!target) return
-      if (target.role === "Admin Utama") { toast.error("Admin Utama tidak dapat dihapus!"); return }
-      setAdminAccounts(adminAccounts.filter(a => a.id !== selected.id))
-      toast.success(`Akun admin "${target.name}" telah dihapus.`)
-      logActivity(`Menghapus akun admin ${target.name}`)
-    } else {
-      const target = accounts.find(a => a.id === selected.id)
-      if (!target) return
-      setAccounts(accounts.filter(a => a.id !== selected.id))
-      toast.success(`Akun pengguna "${target.name}" telah dihapus.`)
-      logActivity(`Menghapus akun pengguna ${target.name}`)
-    }
-    setSelected(null)
-  }
-  const handleNav = (label: string) => {
-    setActiveMenu(label)
-    if (label === "Dashboard") setPage("dashboard")
-    else if (label === "Template") setPage("templates")
-    else if (label === "Undangan Saya") setPage("my-invitations")
-    else if (label === "Edit Undangan") setPage("editor")
-    else if (label === "Data Tamu") setPage("guest-data")
-    else if (label === "RSVP") setPage("rsvp")
-    else if (label === "Amplop Digital") setPage("digital-envelope")
-    else if (label === "QR Check-In") setPage("qr-checkin")
-    else if (label === "Domain") setPage("domain")
-    else if (label === "Pengaturan") setPage("settings")
-    else if (label === "Akses Admin") setPage("admin-access")
-    else if (label === "Akses Pengguna") setPage("user-access")
-    else if (label === "Transaksi") setPage("dashboard")
-    setSidebarOpen(false)
+    if (selected.type === "admin" && selected.id === 0) { toast.error("Admin Utama tidak dapat dihapus!"); return }
+    try {
+      const url = selected.type === "admin" ? `http://localhost:5000/api/admins/${selected.id}` : `http://localhost:5000/api/users/${selected.id}`
+      const res = await fetch(url, { method: "DELETE" }); const d = await res.json()
+      if (d.success) { toast.success("Akun dihapus."); logActivity(`Hapus akun id ${selected.id}`) } else toast.error(d.message || "Gagal menghapus.")
+    } catch (e) { console.error(e); toast.error("Tidak dapat terhubung ke server.") }
+    setSelected(null); onChanged(); loadAccounts()
   }
   return (
     <div className="flex h-screen bg-muted overflow-hidden font-sans">
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
-        <div className="px-5 py-5 border-b border-sidebar-border">
-          <button onClick={() => setPage("dashboard")} className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-primary fill-primary/25" />
-            <span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span>
-          </button>
-        </div>
-        <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
-            <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Akses Admin" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
-              <Icon className="w-4 h-4 flex-shrink-0" />{label}
-            </button>
-          ))}
-        </nav>
-        <div className="px-5 py-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0"><User className="w-4 h-4 text-primary" /></div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/45 truncate">{user.email}</p>
-            </div>
-          </div>
-          <button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs transition-colors">
-            <LogOut className="w-3.5 h-3.5" /> Keluar
-          </button>
-        </div>
+        <div className="px-5 py-5 border-b border-sidebar-border"><button onClick={() => setPage("dashboard")} className="flex items-center gap-2"><Heart className="w-5 h-5 text-primary fill-primary/25" /><span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span></button></div>
+        <nav className="flex-1 py-3 overflow-y-auto">{SIDEBAR_NAV.map(({ icon: Icon, label }) => (<button key={label} onClick={() => nav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}><Icon className="w-4 h-4 flex-shrink-0" />{label}</button>))}</nav>
+        <div className="px-5 py-4 border-t border-sidebar-border"><div className="flex items-center gap-2.5 mb-3"><div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0"><User className="w-4 h-4 text-primary" /></div><div className="min-w-0"><p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p><p className="text-[10px] text-sidebar-foreground/45 truncate">{user.email}</p></div></div><button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent text-xs transition-colors"><LogOut className="w-3.5 h-3.5" /> Keluar</button></div>
       </aside>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-foreground/40 z-30 lg:hidden" />}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 bg-card border-b border-border px-5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-1.5 rounded-lg hover:bg-muted transition-colors"><Menu className="w-5 h-5" /></button>
-            <div>
-              <p className="text-sm font-semibold">Akses Admin</p>
-              <p className="text-[11px] text-muted-foreground hidden sm:block">{view === "panel" ? "Buat dan kelola akun admin Anda" : editing ? `Edit akun ${editing.type === "admin" ? "admin" : "pengguna"}` : createType === "admin" ? "Lengkapi data untuk membuat akun admin baru" : "Lengkapi data untuk membuat akun pengguna baru"}</p>
-            </div>
-          </div>
-        </header>
+        <header className="h-14 bg-card border-b border-border px-5 flex items-center flex-shrink-0"><div><p className="text-sm font-semibold">Akses Admin</p><p className="text-[11px] text-muted-foreground hidden sm:block">Buat dan kelola akun admin Anda</p></div></header>
         <main className="flex-1 overflow-y-auto p-5">
           {view === "panel" ? (
-            <div className="max-w-5xl mx-auto space-y-5">
-              {/* ── Header panel + tombol Create dengan dropdown pilihan tipe akun ── */}
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-semibold">Panel Admin</h2>
-                  <p className="text-xs text-muted-foreground">Kelola akun, konten, pengaturan, dan pantau operasional sistem</p>
-                </div>
-                <div className="relative flex-shrink-0">
-                  <button onClick={() => setShowCreateMenu(!showCreateMenu)} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-all flex items-center gap-1.5">
-                    <Plus className="w-3.5 h-3.5" /> Create
-                  </button>
-                  {showCreateMenu && <div className="fixed inset-0 z-10" onClick={() => setShowCreateMenu(false)} />}
-                  {showCreateMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-52 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-20">
-                      <p className="px-4 pt-3 pb-1.5 text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Tambah akun baru</p>
-                      <button onClick={() => startCreate("admin")} className="w-full px-4 py-2.5 text-xs flex items-center gap-2.5 hover:bg-muted transition-colors">
-                        <Shield className="w-3.5 h-3.5 text-primary flex-shrink-0" /> Akun Admin
-                      </button>
-                      <button onClick={() => startCreate("user")} className="w-full px-4 py-2.5 text-xs flex items-center gap-2.5 hover:bg-muted transition-colors border-t border-border/50">
-                        <UserPlus className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" /> Akun Pengguna
-                      </button>
-                    </div>
-                  )}
-                </div>
+            <div className="space-y-5">
+              <div className="flex items-center justify-between"><div><h2 className="font-semibold">Panel Admin</h2><p className="text-xs text-muted-foreground">Kelola akun, konten, pengaturan, dan pantau operasional</p></div><button onClick={() => openCreate(targetType)} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Create</button></div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {([
+                  { id: "users", title: "Kelola Pengguna", desc: "Atur akun & role", icon: Users },
+                  { id: "content", title: "Kelola Konten", desc: "Data & informasi", icon: FileText },
+                  { id: "system", title: "Pengaturan Sistem", desc: "Konfigurasi dasar", icon: Settings },
+                  { id: "monitor", title: "Pantau Operasional", desc: "Aktivitas sistem", icon: TrendingUp },
+                ] as const).map(m => (<button key={m.id} onClick={() => setActiveModule(m.id)} className={`text-left p-4 rounded-2xl border transition-all ${activeModule === m.id ? "bg-primary/10 border-primary/40" : "bg-card border-border hover:border-primary/30"}`}><m.icon className="w-4 h-4 text-primary mb-2" /><p className="text-sm font-semibold">{m.title}</p><p className="text-[11px] text-muted-foreground">{m.desc}</p></button>))}
               </div>
-              {/* ── 4 kartu fungsi utama admin ── */}
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {MODULES.map(({ id, title, desc, icon: Icon }) => (
-                  <button key={id} onClick={() => setActiveModule(id)} className={`text-left p-4 rounded-2xl border transition-all ${activeModule === id ? "bg-primary/10 border-primary/30" : "bg-card border-border hover:border-primary/30"}`}>
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${activeModule === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <p className="text-xs font-semibold mb-0.5">{title}</p>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">{desc}</p>
-                  </button>
-                ))}
-              </div>
-              {/* ── Modul: Kelola Pengguna (tabel admin + tabel pengguna) ── */}
               {activeModule === "users" && (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center"><Shield className="w-4 h-4 text-primary" /></div>
-                        <div>
-                          <h3 className="text-sm font-semibold">Tabel Akun Admin</h3>
-                          <p className="text-[11px] text-muted-foreground">{admins.length} akun admin terdaftar</p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground hidden md:block">Klik baris untuk memilih akun</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-border bg-muted/50">
-                            {["Nama", "Email", "Role", "Status"].map(h => (
-                              <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {admins.map(a => (
-                            <tr key={a.id} onClick={() => setSelected({ type: "admin", id: a.id })} className={`cursor-pointer border-b border-border/50 transition-colors ${selected?.type === "admin" && selected.id === a.id ? "bg-primary/10" : "hover:bg-muted/30"}`}>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center gap-2.5">
-                                  {a.photo ? (
-                                    <img src={a.photo} alt={a.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                                  ) : (
-                                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-semibold text-primary flex-shrink-0">{initials(a.name)}</div>
-                                  )}
-                                  <span className="text-xs font-medium whitespace-nowrap">{a.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{a.email}</td>
-                              <td className="px-4 py-3">
-                                <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap ${a.role === "Admin Utama" ? "bg-primary/10 text-primary border-primary/25" : "bg-blue-50 text-blue-600 border-blue-200"}`}>{a.role}</span>
-                              </td>
-                              <td className="px-4 py-3"><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600 whitespace-nowrap">Aktif</span></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                    <div className="p-4 border-b border-border flex items-center justify-between"><h3 className="text-sm font-semibold">Tabel Akun Admin</h3><button onClick={() => openCreate("admin")} className="text-xs text-primary hover:underline">+ Admin</button></div>
+                    <table className="w-full"><thead><tr className="border-b border-border bg-muted/50">{["Nama", "Email", "Role", "Status"].map(h => <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold text-muted-foreground uppercase">{h}</th>)}</tr></thead><tbody>
+                      {admins.map(a => (<tr key={`a${a.id}`} onClick={() => setSelected({ type: "admin", id: a.id })} className={`cursor-pointer border-b border-border/50 ${selected?.type === "admin" && selected.id === a.id ? "bg-primary/10" : "hover:bg-muted/30"}`}><td className="px-4 py-2 text-xs font-medium">{a.name}</td><td className="px-4 py-2 text-xs text-muted-foreground">{a.email}</td><td className="px-4 py-2"><span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{a.role}</span></td><td className="px-4 py-2"><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600">Aktif</span></td></tr>))}
+                    </tbody></table></div>
                   <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center"><UserPlus className="w-4 h-4 text-blue-600" /></div>
-                        <div>
-                          <h3 className="text-sm font-semibold">Tabel Akun Pengguna</h3>
-                          <p className="text-[11px] text-muted-foreground">{accounts.length} akun pengguna terdaftar</p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground hidden md:block">Klik baris untuk memilih akun</span>
-                    </div>
-                    {accounts.length === 0 ? (
-                      <div className="py-10 text-center text-muted-foreground text-xs">Belum ada akun pengguna. Dibuat lewat menu Akses Pengguna atau tombol Create.</div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-border bg-muted/50">
-                              {["Nama", "Email", "Role", "Status"].map(h => (
-                                <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {accounts.map(a => (
-                              <tr key={a.id} onClick={() => setSelected({ type: "user", id: a.id })} className={`cursor-pointer border-b border-border/50 transition-colors ${selected?.type === "user" && selected.id === a.id ? "bg-primary/10" : "hover:bg-muted/30"}`}>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2.5">
-                                    {a.photo ? (
-                                      <img src={a.photo} alt={a.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                                    ) : (
-                                      <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-[10px] font-semibold text-blue-600 flex-shrink-0">{initials(a.name)}</div>
-                                    )}
-                                    <span className="text-xs font-medium whitespace-nowrap">{a.name}</span>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{a.email}</td>
-                                <td className="px-4 py-3"><span className="text-[10px] font-medium px-2.5 py-1 rounded-full border bg-blue-50 text-blue-600 border-blue-200 whitespace-nowrap">{a.role ?? "Pengguna"}</span></td>
-                                <td className="px-4 py-3"><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600 whitespace-nowrap">Aktif</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                  {/* ── Pojok kiri bawah: Edit & Delete ── */}
-                  <div className="flex items-center gap-2">
-                    <button onClick={openEditSelected} className="px-4 py-2 border border-border rounded-lg text-xs hover:border-primary hover:text-primary transition-colors flex items-center gap-1.5">
-                      <Edit3 className="w-3.5 h-3.5" /> Edit
-                    </button>
-                    <button onClick={handleDeleteSelected} className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs hover:bg-red-100 transition-colors flex items-center gap-1.5">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </button>
-                    {selected && <span className="text-[11px] text-muted-foreground">Terpilih: <span className="font-semibold text-foreground">{selectedName}</span></span>}
-                  </div>
+                    <div className="p-4 border-b border-border flex items-center justify-between"><h3 className="text-sm font-semibold">Tabel Akun Pengguna</h3><button onClick={() => openCreate("user")} className="text-xs text-primary hover:underline">+ Pengguna</button></div>
+                    <table className="w-full"><thead><tr className="border-b border-border bg-muted/50">{["Nama", "Email", "Role", "Status"].map(h => <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold text-muted-foreground uppercase">{h}</th>)}</tr></thead><tbody>
+                      {dbUsers.map(a => (<tr key={`u${a.id}`} onClick={() => setSelected({ type: "user", id: a.id })} className={`cursor-pointer border-b border-border/50 ${selected?.type === "user" && selected.id === a.id ? "bg-primary/10" : "hover:bg-muted/30"}`}><td className="px-4 py-2 text-xs font-medium">{a.name}</td><td className="px-4 py-2 text-xs text-muted-foreground">{a.email}</td><td className="px-4 py-2"><span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{a.role}</span></td><td className="px-4 py-2"><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600">Aktif</span></td></tr>))}
+                      {dbUsers.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-xs text-muted-foreground">Belum ada akun pengguna.</td></tr>}
+                    </tbody></table></div>
+                  <div className="flex gap-2"><button onClick={openEditSelected} className="px-4 py-2 border border-border rounded-lg text-xs hover:border-primary hover:text-primary flex items-center gap-1.5"><Edit3 className="w-3.5 h-3.5" /> Edit</button><button onClick={handleDeleteSelected} className="px-4 py-2 border border-red-200 text-red-500 rounded-lg text-xs hover:bg-red-50 flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" /> Delete</button></div>
                 </div>
               )}
-              {/* ── Modul: Kelola Konten ── */}
-              {activeModule === "content" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                  <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center"><FileText className="w-4 h-4 text-primary" /></div>
-                      <div>
-                        <h3 className="text-sm font-semibold">Kelola Konten</h3>
-                        <p className="text-[11px] text-muted-foreground">{contentItems.length} konten dalam sistem</p>
-                      </div>
-                    </div>
-                    <button onClick={() => { setContentItems([...contentItems, { id: Date.now(), name: `Konten Baru ${contentItems.length + 1}`, kind: "Halaman", active: true }]); toast.success("Konten baru ditambahkan!"); logActivity("Menambahkan konten baru") }} className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium hover:bg-primary/90 transition-colors flex items-center gap-1">
-                      <Plus className="w-3 h-3" /> Tambah
-                    </button>
-                  </div>
-                  <div>
-                    {contentItems.map(item => (
-                      <div key={item.id} className="px-4 py-3 flex items-center justify-between gap-3 border-b border-border/50 last:border-0">
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">{item.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{item.kind} • {item.active ? "Aktif" : "Nonaktif"}</p>
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <ToggleSwitch checked={item.active} onChange={() => { setContentItems(contentItems.map(c => c.id === item.id ? { ...c, active: !c.active } : c)); logActivity(`${item.active ? "Menonaktifkan" : "Mengaktifkan"} konten ${item.name}`) }} />
-                          <button onClick={() => { setContentItems(contentItems.filter(c => c.id !== item.id)); toast.success(`Konten "${item.name}" dihapus.`); logActivity(`Menghapus konten ${item.name}`) }} className="text-red-500 hover:text-red-600 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* ── Modul: Pengaturan Sistem ── */}
-              {activeModule === "system" && (
-                <div className="bg-card rounded-2xl p-6 border border-border">
-                  <div className="flex items-start gap-4 mb-5">
-                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><Settings className="w-5 h-5 text-blue-600" /></div>
-                    <div>
-                      <h3 className="text-sm font-semibold">Pengaturan Sistem</h3>
-                      <p className="text-xs text-muted-foreground">Konfigurasi dasar aplikasi dan keamanan</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { label: "Mode Maintenance", desc: "Tutup sementara akses publik ke undangan", key: "maintenance" as const },
-                      { label: "Two-Factor Authentication", desc: "Wajibkan verifikasi tambahan saat login admin", key: "twoFA" as const },
-                      { label: "Registrasi Publik", desc: "Izinkan pembuatan akun pengguna baru", key: "publicReg" as const },
-                    ].map(({ label, desc, key }) => (
-                      <div key={key} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border/50">
-                        <div>
-                          <p className="text-xs font-semibold">{label}</p>
-                          <p className="text-[10px] text-muted-foreground">{desc}</p>
-                        </div>
-                        <ToggleSwitch checked={system[key]} onChange={() => setSystem({ ...system, [key]: !system[key] })} />
-                      </div>
-                    ))}
-                    <div className="p-3 bg-muted/50 rounded-lg border border-border/50">
-                      <p className="text-xs font-semibold mb-1.5">Session Timeout (menit)</p>
-                      <input type="number" min={5} max={120} value={system.timeout} onChange={e => setSystem({ ...system, timeout: Number(e.target.value) })} className="w-full px-3 py-2 text-xs border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                    </div>
-                  </div>
-                  <div className="mt-5 flex justify-end">
-                    <button onClick={() => { toast.success("Pengaturan sistem disimpan!"); logActivity("Memperbarui pengaturan sistem") }} className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all">Simpan Pengaturan</button>
-                  </div>
-                </div>
-              )}
-              {/* ── Modul: Pantau Operasional ── */}
-              {activeModule === "monitor" && (
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                  <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center"><TrendingUp className="w-4 h-4 text-green-600" /></div>
-                      <div>
-                        <h3 className="text-sm font-semibold">Pantau Operasional</h3>
-                        <p className="text-[11px] text-muted-foreground">Aktivitas sistem secara langsung</p>
-                      </div>
-                    </div>
-                    <span className="flex items-center gap-1.5 text-[10px] text-green-600 font-medium">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Live
-                    </span>
-                  </div>
-                  <div className="divide-y divide-border/50">
-                    {activity.map(log => (
-                      <div key={log.id} className="px-4 py-3 flex items-center gap-3">
-                        <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">{log.time}</span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">{log.action}</p>
-                          <p className="text-[10px] text-muted-foreground">oleh {log.actor}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {activeModule === "content" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Panel konten (placeholder).</div>}
+              {activeModule === "system" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Panel pengaturan sistem (placeholder).</div>}
+              {activeModule === "monitor" && <div className="bg-card rounded-2xl border border-border p-6"><h3 className="text-sm font-semibold mb-3">Aktivitas Terbaru</h3>{activityLog.length === 0 ? <p className="text-xs text-muted-foreground">Belum ada aktivitas.</p> : activityLog.map((l, i) => <p key={i} className="text-xs text-muted-foreground py-1 border-b border-border/40">{l}</p>)}</div>}
             </div>
           ) : (
-            /* ── VIEW FORM: buat / edit akun ── */
-            <div className="max-w-3xl mx-auto space-y-5">
-              {/* ── Kartu Foto Profil ── */}
-              <div className="bg-card rounded-2xl p-6 border border-border">
-                <div className="flex items-start gap-4 mb-5">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0"><Camera className="w-5 h-5 text-primary" /></div>
-                  <div>
-                    <h3 className="text-sm font-semibold">Foto Profil {editing ? "Akun" : targetType === "admin" ? "Admin Baru" : "Pengguna Baru"}</h3>
-                    <p className="text-xs text-muted-foreground">Upload foto profil (JPG/PNG, maks. 2MB)</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div className="relative flex-shrink-0">
-                    {photo ? (
-                      <img src={photo} alt="Foto profil" className="w-20 h-20 rounded-full object-cover border-2 border-primary" />
-                    ) : (
-                      <div className="w-20 h-20 bg-primary/15 rounded-full flex items-center justify-center border-2 border-dashed border-primary/40">
-                        <User className="w-8 h-8 text-primary" />
-                      </div>
-                    )}
-                    <label htmlFor="upload-foto" className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors shadow-md">
-                      <Camera className="w-3.5 h-3.5 text-white" />
-                    </label>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-3">Foto akan dipakai sebagai profil akun yang Anda {editing ? "edit" : "buat"}.</p>
-                    <div className="flex gap-2">
-                      <label htmlFor="upload-foto" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5" /> Pilih Foto
-                      </label>
-                      {photo && (
-                        <button onClick={() => setPhoto(null)} className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 transition-all">
-                          Hapus Foto
-                        </button>
-                      )}
-                    </div>
-                    <input id="upload-foto" type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-                  </div>
-                </div>
-              </div>
-              {/* ── Kartu Form Akun ── */}
-              <div className="bg-card rounded-2xl p-6 border border-border">
-                <div className="flex items-start gap-4 mb-5">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><Shield className="w-5 h-5 text-blue-600" /></div>
-                  <div>
-                    <h3 className="text-sm font-semibold">{editing ? "Edit Akun" : targetType === "admin" ? "Informasi Akun Admin Baru" : "Informasi Akun Pengguna Baru"}</h3>
-                    <p className="text-xs text-muted-foreground">{editing ? "Perbarui data akun yang dipilih" : targetType === "admin" ? "Lengkapi data untuk membuat akun admin baru" : "Lengkapi data untuk membuat akun pengguna baru"}</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Nama</label>
-                    <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={targetType === "admin" ? "Nama lengkap admin baru" : "Nama lengkap pengguna baru"} className="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Email</label>
-                    <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" className="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Role</label>
-                    <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors cursor-pointer">
-                      {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <p className="text-[10px] text-muted-foreground mt-1">{targetType === "admin" ? "Tentukan peran & izin akses akun admin ini." : "Tentukan tipe akun pengguna ini."}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Password</label>
-                    <div className="relative">
-                      <input type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={editing ? "Kosongkan jika tidak diubah" : "Minimal 6 karakter"} className="w-full px-4 py-2.5 pr-11 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {/* ── Tombol Kembali (ke panel Akses Admin) / Batal / Simpan ── */}
-                <div className="mt-5 flex flex-col sm:flex-row justify-end gap-2">
-                  <button onClick={() => { setView("panel"); setEditing(null); setShowCreateMenu(false) }} className="px-5 py-2.5 border border-border rounded-lg text-sm hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-1.5">
-                    <ChevronRight className="w-3.5 h-3.5 rotate-180" /> Kembali
-                  </button>
-                  <button onClick={() => { setView("panel"); setEditing(null); setForm({ name: "", email: "", password: "", role: "Admin" }); setPhoto(null); toast.info("Perubahan dibatalkan.") }} className="px-5 py-2.5 bg-muted border border-border rounded-lg text-sm hover:bg-muted/80 transition-all">
-                    Batal
-                  </button>
-                  <button onClick={handleSave} className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Simpan
-                  </button>
-                </div>
-              </div>
+            <div className="max-w-2xl bg-card rounded-2xl border border-border p-6 space-y-4">
+              <h3 className="font-semibold">{editing ? "Edit Akun" : `Buat Akun ${targetType === "admin" ? "Admin" : "Pengguna"}`}</h3>
+              <div><label className="text-xs font-medium mb-1.5 block">Nama</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+              <div><label className="text-xs font-medium mb-1.5 block">Email</label><input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+              <div><label className="text-xs font-medium mb-1.5 block">Password</label><input type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={editing ? "Kosongkan jika tidak diubah" : "Minimal 6 karakter"} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+              {targetType === "admin" && (<div><label className="text-xs font-medium mb-1.5 block">Role</label><select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary"><option>Admin Utama</option><option>Admin</option><option>Editor</option><option>Viewer</option></select></div>)}
+              <div className="flex justify-end gap-2"><button onClick={() => { setView("panel"); setEditing(null) }} className="px-4 py-2 border border-border rounded-lg text-xs">Kembali</button><button onClick={handleSave} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium">Simpan</button></div>
             </div>
           )}
         </main>
@@ -3694,117 +3603,22 @@ function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, accounts, s
   )
 }
 
-/// ─── USER ACCESS PAGE ────────────────────────────────────────────────────────
-type UserPanel = "akun" | "riwayat" | "layanan"
 
-function UserAccessPage({ setPage, activeMenu, setActiveMenu, user, accounts, setAccounts }: {
+// ─── USER ACCESS PAGE ───────────────────────────────────────────────────────
+function UserAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }: {
   setPage: (p: Page) => void
   activeMenu: string
   setActiveMenu: (m: string) => void
   user: UserInfo
-  accounts: UserAccount[]
-  setAccounts: (a: UserAccount[]) => void
+  onChanged: () => void
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  // ✅ Panel aktif: akun / riwayat / layanan
-  const [activePanel, setActivePanel] = useState<UserPanel>("akun")
-  // Form kosong — untuk membuat akun pengguna BARU
+  const [activePanel, setActivePanel] = useState<"akun" | "riwayat" | "layanan">("akun")
   const [form, setForm] = useState({ name: "", email: "", password: "" })
   const [showPassword, setShowPassword] = useState(false)
-  const [photo, setPhoto] = useState<string | null>(null)
-  // ✅ Filter untuk panel Cek Riwayat
-  const [historyFilter, setHistoryFilter] = useState("Semua")
-
-  // ✅ Data riwayat (dummy) — aktivitas, transaksi, status pesanan
-  const USER_HISTORY = [
-    { id: 1, type: "Transaksi", title: "Pembayaran Paket Standard", detail: "INV-20250112-001 • BCA Virtual Account", date: "12 Jan 2025", status: "Berhasil", amount: "Rp 199.000" },
-    { id: 2, type: "Pesanan", title: "Undangan Anisa & Raka", detail: "Paket Standard • Aktif s/d 12 Jan 2026", date: "12 Jan 2025", status: "Aktif", amount: null },
-    { id: 3, type: "Aktivitas", title: "Login ke akun", detail: "Perangkat: Chrome • Jakarta", date: "11 Jan 2025", status: "Berhasil", amount: null },
-    { id: 4, type: "Transaksi", title: "Pembayaran Paket Basic", detail: "INV-20250103-005 • BNI Virtual Account", date: "3 Jan 2025", status: "Gagal", amount: "Rp 99.000" },
-    { id: 5, type: "Aktivitas", title: "Mengubah password", detail: "Keamanan akun diperbarui", date: "28 Des 2024", status: "Berhasil", amount: null },
-    { id: 6, type: "Pesanan", title: "Undangan Lia & Yusuf", detail: "Paket Basic • Masa aktif habis", date: "25 Des 2024", status: "Selesai", amount: null },
-  ]
-  const filteredHistory = historyFilter === "Semua" ? USER_HISTORY : USER_HISTORY.filter(h => h.type === historyFilter)
-  const historyStatusColor = (status: string) => {
-    if (status === "Berhasil" || status === "Aktif" || status === "Selesai") return "bg-green-50 text-green-600 border-green-200"
-    if (status === "Gagal") return "bg-red-50 text-red-500 border-red-200"
-    return "bg-yellow-50 text-yellow-600 border-yellow-200"
-  }
-  const historyIcon = (type: string) => {
-    if (type === "Transaksi") return CreditCard
-    if (type === "Pesanan") return Package
-    return Clock
-  }
-
-  // ✅ Unduh data sebagai file CSV sungguhan
-  const downloadCSV = (filename: string, rows: string[][]) => {
-    const csv = rows.map(r => r.join(",")).join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success(`${filename} berhasil diunduh!`)
-  }
-
-  // ✅ 3 kartu panel pengguna
-  const PANELS: { id: UserPanel; title: string; desc: string; icon: any }[] = [
-    { id: "akun", title: "Akun Pengguna", desc: "Buat & kelola akun untuk login sebagai pengguna", icon: UserPlus },
-    { id: "riwayat", title: "Cek Riwayat", desc: "Lihat aktivitas, transaksi, dan status pesanan", icon: Clock },
-    { id: "layanan", title: "Akses Layanan", desc: "Gunakan fitur inti & unduh data penting", icon: Package },
-  ]
-
-  // ✅ Fitur inti aplikasi (klik → langsung buka halaman terkait)
-  const SERVICES = [
-    { label: "Buat Undangan", desc: "Mulai undangan digital baru", icon: Plus, action: () => setPage("checkout") },
-    { label: "Edit Undangan", desc: "Ubah tema & isi undangan", icon: Edit3, action: () => setPage("editor") },
-    { label: "Data Tamu", desc: "Kelola daftar tamu undangan", icon: Users, action: () => setPage("guest-data") },
-    { label: "RSVP & Ucapan", desc: "Lihat konfirmasi tamu", icon: MessageCircle, action: () => setPage("rsvp") },
-    { label: "Amplop Digital", desc: "Kelola hadiah dari tamu", icon: Gift, action: () => setPage("digital-envelope") },
-    { label: "QR Check-In", desc: "Scan tamu di lokasi acara", icon: QrCode, action: () => setPage("qr-checkin") },
-  ]
-
-  // ✅ Unduh data penting
-  const DOWNLOADS = [
-    { label: "Data Tamu (CSV)", desc: "Seluruh daftar tamu & status RSVP", icon: Users, action: () => downloadCSV("data-tamu.csv", [["Nama", "WhatsApp", "Status"], ["Budi Santoso", "081234567890", "Hadir"], ["Siti Aminah", "089876543210", "Tidak Hadir"], ["Andi Pratama", "085678901234", "Belum Konfirmasi"]]) },
-    { label: "Riwayat Transaksi (CSV)", desc: "Rekap pembayaran & pesanan", icon: Receipt, action: () => downloadCSV("riwayat-transaksi.csv", [["Invoice", "Tanggal", "Paket", "Total", "Status"], ["INV-20250112-001", "12 Jan 2025", "Standard", "199000", "Paid"], ["INV-20250103-005", "3 Jan 2025", "Basic", "99000", "Failed"]]) },
-    { label: "Bukti Pendaftaran (PDF)", desc: "Dokumen ringkasan akun Anda", icon: FileText, action: () => toast.info("Fitur unduh PDF akan segera hadir!") },
-  ]
-
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith("image/")) { toast.error("File harus berupa gambar!"); return }
-    if (file.size > 2 * 1024 * 1024) { toast.error("Ukuran foto maksimal 2MB!"); return }
-    const reader = new FileReader()
-    reader.onload = () => { setPhoto(reader.result as string); toast.success("Foto profil siap disimpan!") }
-    reader.readAsDataURL(file)
-    e.target.value = ""
-  }
-  const handleSave = () => {
-    if (form.name.length < 3) { toast.error("Nama minimal 3 karakter!"); return }
-    if (!form.email.includes("@")) { toast.error("Email tidak valid!"); return }
-    if (form.password.length < 6) { toast.error("Password minimal 6 karakter!"); return }
-    if (accounts.some(a => a.email.toLowerCase() === form.email.toLowerCase())) { toast.error("Email sudah digunakan akun pengguna lain!"); return }
-    setAccounts([...accounts, { id: Date.now(), name: form.name, email: form.email, photo, password: form.password }])
-    toast.success(`Akun pengguna "${form.name}" berhasil dibuat!`)
-    setForm({ name: "", email: "", password: "" })
-    setPhoto(null)
-    setShowPassword(false)
-  }
-  const handleCancel = () => {
-    setForm({ name: "", email: "", password: "" })
-    setPhoto(null)
-    setShowPassword(false)
-    toast.info("Formulir dikosongkan.")
-  }
-  const handleDelete = (acc: UserAccount) => {
-    setAccounts(accounts.filter(a => a.id !== acc.id))
-    toast.success(`Akun pengguna "${acc.name}" telah dihapus.`)
-  }
-  const handleNav = (label: string) => {
+  const [accounts, setAccounts] = useState<UserAccount[]>([])
+  const [editing, setEditing] = useState<UserAccount | null>(null)
+  const nav = (label: string) => {
     setActiveMenu(label)
     if (label === "Dashboard") setPage("dashboard")
     else if (label === "Template") setPage("templates")
@@ -3815,289 +3629,86 @@ function UserAccessPage({ setPage, activeMenu, setActiveMenu, user, accounts, se
     else if (label === "Amplop Digital") setPage("digital-envelope")
     else if (label === "QR Check-In") setPage("qr-checkin")
     else if (label === "Domain") setPage("domain")
+    else if (label === "Transaksi") setPage("dashboard")
     else if (label === "Pengaturan") setPage("settings")
     else if (label === "Akses Admin") setPage("admin-access")
     else if (label === "Akses Pengguna") setPage("user-access")
-    else if (label === "Transaksi") setPage("dashboard")
-    setSidebarOpen(false)
+    else setPage("dashboard")
   }
-
+  const loadUsers = async () => {
+    try {
+      const r = await fetch("http://localhost:5000/api/users")
+      const d = await r.json()
+      if (d.success) setAccounts(d.data.map((x: any) => ({ id: x.id, name: x.name, email: x.email, photo: x.photo_url ?? null, role: x.role ?? "Pengguna", password: "" })))
+    } catch (e) { console.error(e) }
+  }
+  useEffect(() => { loadUsers() }, [])
+  const handleSave = async () => {
+    if (form.name.length < 3) { toast.error("Nama minimal 3 karakter!"); return }
+    if (!form.email.includes("@")) { toast.error("Email tidak valid!"); return }
+    if (!editing && form.password.length < 6) { toast.error("Password minimal 6 karakter!"); return }
+    try {
+      const url = editing ? `http://localhost:5000/api/users/${editing.id}` : "http://localhost:5000/api/users"
+      const res = await fetch(url, {
+        method: editing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, email: form.email, role: "Pengguna", password: form.password || undefined }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        toast.success(editing ? `Akun "${form.name}" diperbarui!` : `Akun "${form.name}" tersimpan di database!`)
+        setForm({ name: "", email: "", password: "" })
+        setEditing(null)
+        onChanged()
+        loadUsers()
+      } else toast.error(d.message || "Gagal menyimpan akun.")
+    } catch (e) { console.error(e); toast.error("Tidak dapat terhubung ke server.") }
+  }
+  const handleDelete = async (a: UserAccount) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/users/${a.id}`, { method: "DELETE" })
+      const d = await res.json()
+      if (d.success) { toast.success(`Akun "${a.name}" dihapus.`); onChanged(); loadUsers() }
+      else toast.error(d.message || "Gagal menghapus.")
+    } catch { toast.error("Tidak dapat terhubung ke server.") }
+  }
   return (
     <div className="flex h-screen bg-muted overflow-hidden font-sans">
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
-        <div className="px-5 py-5 border-b border-sidebar-border">
-          <button onClick={() => setPage("dashboard")} className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-primary fill-primary/25" />
-            <span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span>
-          </button>
-        </div>
-        <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
-            <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Akses Pengguna" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
-              <Icon className="w-4 h-4 flex-shrink-0" />{label}
-            </button>
-          ))}
-        </nav>
-        <div className="px-5 py-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0"><User className="w-4 h-4 text-primary" /></div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/45 truncate">{user.email}</p>
-            </div>
-          </div>
-          <button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs transition-colors">
-            <LogOut className="w-3.5 h-3.5" /> Keluar
-          </button>
-        </div>
+        <div className="px-5 py-5 border-b border-sidebar-border"><button onClick={() => setPage("dashboard")} className="flex items-center gap-2"><Heart className="w-5 h-5 text-primary fill-primary/25" /><span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span></button></div>
+        <nav className="flex-1 py-3 overflow-y-auto">{SIDEBAR_NAV.map(({ icon: Icon, label }) => (<button key={label} onClick={() => nav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}><Icon className="w-4 h-4 flex-shrink-0" />{label}</button>))}</nav>
+        <div className="px-5 py-4 border-b border-sidebar-border"><div className="flex items-center gap-2.5 mb-3"><div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0"><User className="w-4 h-4 text-primary" /></div><div className="min-w-0"><p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p><p className="text-[10px] text-sidebar-foreground/45 truncate">{user.email}</p></div></div><button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent text-xs transition-colors"><LogOut className="w-3.5 h-3.5" /> Keluar</button></div>
       </aside>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-foreground/40 z-30 lg:hidden" />}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 bg-card border-b border-border px-5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-1.5 rounded-lg hover:bg-muted transition-colors"><Menu className="w-5 h-5" /></button>
-            <div>
-              <p className="text-sm font-semibold">Akses Pengguna</p>
-              <p className="text-[11px] text-muted-foreground hidden sm:block">{activePanel === "akun" ? "Buat akun untuk login sebagai pengguna" : activePanel === "riwayat" ? "Aktivitas, transaksi, dan status pesanan Anda" : "Fitur inti aplikasi & unduh data penting"}</p>
-            </div>
+        <header className="h-14 bg-card border-b border-border px-5 flex items-center flex-shrink-0"><div><p className="text-sm font-semibold">Akses Pengguna</p><p className="text-[11px] text-muted-foreground hidden sm:block">Buat akun untuk login sebagai pengguna</p></div></header>
+        <main className="flex-1 overflow-y-auto p-5 space-y-5">
+          <div className="grid sm:grid-cols-3 gap-4">
+            {([
+              { id: "akun", title: "Akun Pengguna", desc: "Buat & kelola akun", icon: UserPlus },
+              { id: "riwayat", title: "Cek Riwayat", desc: "Aktivitas & transaksi", icon: Clock },
+              { id: "layanan", title: "Akses Layanan", desc: "Fitur inti aplikasi", icon: Package },
+            ] as const).map(p => (<button key={p.id} onClick={() => setActivePanel(p.id)} className={`text-left p-4 rounded-2xl border ${activePanel === p.id ? "bg-primary/10 border-primary/40" : "bg-card border-border"}`}><p className="text-sm font-semibold">{p.title}</p><p className="text-[11px] text-muted-foreground">{p.desc}</p></button>))}
           </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-5">
-          <div className="max-w-5xl mx-auto space-y-5">
-            {/* ── Header panel + 3 kartu panel ── */}
-            <div>
-              <h2 className="text-sm font-semibold">Panel Pengguna</h2>
-              <p className="text-xs text-muted-foreground">Kelola akun, cek riwayat, dan akses layanan aplikasi</p>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {PANELS.map(({ id, title, desc, icon: Icon }) => (
-                <button key={id} onClick={() => setActivePanel(id)} className={`text-left p-4 rounded-2xl border transition-all ${activePanel === id ? "bg-primary/10 border-primary/30" : "bg-card border-border hover:border-primary/30"}`}>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${activePanel === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs font-semibold mb-0.5">{title}</p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">{desc}</p>
-                </button>
-              ))}
-            </div>
-
-            {/* ── PANEL: AKUN PENGGUNA (isi lama, tetap utuh) ── */}
-            {activePanel === "akun" && (
-              <>
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex items-start gap-3">
-                  <UserPlus className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-700">Akun yang dibuat di halaman ini digunakan untuk <strong>login sebagai Pengguna</strong> melalui halaman masuk — berbeda dengan Akses Admin yang khusus untuk akun admin.</p>
-                </div>
-                <div className="bg-card rounded-2xl p-6 border border-border">
-                  <div className="flex items-start gap-4 mb-5">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0"><Camera className="w-5 h-5 text-primary" /></div>
-                    <div>
-                      <h3 className="text-sm font-semibold">Foto Profil Pengguna Baru</h3>
-                      <p className="text-xs text-muted-foreground">Upload foto profil (JPG/PNG, maks. 2MB)</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-5">
-                    <div className="relative flex-shrink-0">
-                      {photo ? (
-                        <img src={photo} alt="Foto profil" className="w-20 h-20 rounded-full object-cover border-2 border-primary" />
-                      ) : (
-                        <div className="w-20 h-20 bg-primary/15 rounded-full flex items-center justify-center border-2 border-dashed border-primary/40">
-                          <User className="w-8 h-8 text-primary" />
-                        </div>
-                      )}
-                      <label htmlFor="upload-foto-user" className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors shadow-md">
-                        <Camera className="w-3.5 h-3.5 text-white" />
-                      </label>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground mb-3">Foto akan dipakai sebagai profil akun pengguna baru yang Anda buat.</p>
-                      <div className="flex gap-2">
-                        <label htmlFor="upload-foto-user" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer flex items-center gap-1.5">
-                          <Camera className="w-3.5 h-3.5" /> Pilih Foto
-                        </label>
-                        {photo && (
-                          <button onClick={() => setPhoto(null)} className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 transition-all">
-                            Hapus Foto
-                          </button>
-                        )}
-                      </div>
-                      <input id="upload-foto-user" type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-card rounded-2xl p-6 border border-border">
-                  <div className="flex items-start gap-4 mb-5">
-                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><UserPlus className="w-5 h-5 text-blue-600" /></div>
-                    <div>
-                      <h3 className="text-sm font-semibold">Informasi Akun Pengguna Baru</h3>
-                      <p className="text-xs text-muted-foreground">Akun ini dapat digunakan untuk login sebagai pengguna</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Nama</label>
-                      <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Nama lengkap pengguna baru" className="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Email</label>
-                      <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" className="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Password</label>
-                      <div className="relative">
-                        <input type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimal 6 karakter" className="w-full px-4 py-2.5 pr-11 text-sm border border-border rounded-lg bg-muted outline-none focus:border-primary transition-colors" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-5 flex flex-col sm:flex-row justify-end gap-2">
-                    <button onClick={() => setPage("dashboard")} className="px-5 py-2.5 border border-border rounded-lg text-sm hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-1.5">
-                      <ChevronRight className="w-3.5 h-3.5 rotate-180" /> Kembali
-                    </button>
-                    <button onClick={handleCancel} className="px-5 py-2.5 bg-muted border border-border rounded-lg text-sm hover:bg-muted/80 transition-all">
-                      Batal
-                    </button>
-                    <button onClick={handleSave} className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5">
-                      <Plus className="w-4 h-4" /> Simpan
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-card rounded-2xl p-6 border border-border">
-                  <div className="flex items-start gap-4 mb-5">
-                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0"><Users className="w-5 h-5 text-green-600" /></div>
-                    <div>
-                      <h3 className="text-sm font-semibold">Daftar Akun Pengguna</h3>
-                      <p className="text-xs text-muted-foreground">{accounts.length} akun pengguna terdaftar</p>
-                    </div>
-                  </div>
-                  {accounts.length === 0 ? (
-                    <div className="py-8 text-center text-muted-foreground text-xs">Belum ada akun pengguna. Buat akun pertama Anda melalui formulir di atas.</div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {accounts.map(a => (
-                        <div key={a.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border/50">
-                          {a.photo ? (
-                            <img src={a.photo} alt={a.name} className="w-10 h-10 rounded-full object-cover border-2 border-primary flex-shrink-0" />
-                          ) : (
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">
-                              {a.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate">{a.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{a.email}</p>
-                          </div>
-                          <span className="text-[10px] font-medium px-2.5 py-1 rounded-full border bg-blue-50 text-blue-600 border-blue-200 flex-shrink-0">{a.role ?? "Pengguna"}</span>
-                          <button onClick={() => handleDelete(a)} className="text-[10px] text-red-500 hover:underline flex-shrink-0">Hapus</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* ── PANEL: CEK RIWAYAT ── */}
-            {activePanel === "riwayat" && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Total Transaksi", value: USER_HISTORY.filter(h => h.type === "Transaksi").length, icon: CreditCard, color: "text-blue-500 bg-blue-50" },
-                    { label: "Pesanan Aktif", value: USER_HISTORY.filter(h => h.type === "Pesanan" && h.status === "Aktif").length, icon: Package, color: "text-primary bg-primary/10" },
-                    { label: "Aktivitas", value: USER_HISTORY.filter(h => h.type === "Aktivitas").length, icon: Clock, color: "text-green-500 bg-green-50" },
-                  ].map(({ label, value, icon: Icon, color }, i) => (
-                    <div key={i} className="bg-card rounded-xl p-4 border border-border">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
-                      <p className="text-lg font-bold">{value}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                  <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center"><Clock className="w-4 h-4 text-primary" /></div>
-                      <div>
-                        <h3 className="text-sm font-semibold">Riwayat Anda</h3>
-                        <p className="text-[11px] text-muted-foreground">Aktivitas, transaksi, dan status pesanan sebelumnya</p>
-                      </div>
-                    </div>
-                    <div className="flex bg-muted rounded-lg overflow-hidden border border-border">
-                      {["Semua", "Transaksi", "Pesanan", "Aktivitas"].map(f => (
-                        <button key={f} onClick={() => setHistoryFilter(f)} className={`px-3 py-1.5 text-[11px] transition-colors ${historyFilter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/80"}`}>{f}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="divide-y divide-border/50">
-                    {filteredHistory.map(h => {
-                      const Icon = historyIcon(h.type)
-                      return (
-                        <div key={h.id} className="p-4 flex items-center gap-3">
-                          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center flex-shrink-0"><Icon className="w-4 h-4 text-muted-foreground" /></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold truncate">{h.title}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{h.detail} • {h.date}</p>
-                          </div>
-                          {h.amount && <span className="text-xs font-semibold flex-shrink-0">{h.amount}</span>}
-                          <span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border flex-shrink-0 ${historyStatusColor(h.status)}`}>{h.status}</span>
-                        </div>
-                      )
-                    })}
-                    {filteredHistory.length === 0 && <div className="py-10 text-center text-muted-foreground text-xs">Tidak ada riwayat untuk filter ini.</div>}
-                  </div>
-                </div>
+          {activePanel === "akun" && (
+            <div className="grid lg:grid-cols-2 gap-5">
+              <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+                <h3 className="font-semibold">{editing ? "Edit Akun Pengguna" : "Informasi Akun Pengguna Baru"}</h3>
+                <div><label className="text-xs font-medium mb-1.5 block">Nama</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                <div><label className="text-xs font-medium mb-1.5 block">Email</label><input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                <div><label className="text-xs font-medium mb-1.5 block">Password</label><input type={showPassword ? "text" : "password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={editing ? "Kosongkan jika tidak diubah" : "Minimal 6 karakter"} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                <div className="flex justify-end gap-2">{editing && <button onClick={() => { setEditing(null); setForm({ name: "", email: "", password: "" }) }} className="px-4 py-2 border border-border rounded-lg text-xs">Batal Edit</button>}<button onClick={handleSave} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium">Simpan</button></div>
               </div>
-            )}
-
-            {/* ── PANEL: AKSES LAYANAN ── */}
-            {activePanel === "layanan" && (
-              <div className="space-y-5">
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                  <div className="p-4 border-b border-border flex items-center gap-3">
-                    <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center"><Package className="w-4 h-4 text-primary" /></div>
-                    <div>
-                      <h3 className="text-sm font-semibold">Fitur Inti Aplikasi</h3>
-                      <p className="text-[11px] text-muted-foreground">Klik untuk langsung membuka fitur</p>
-                    </div>
-                  </div>
-                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-                    {SERVICES.map(({ label, desc, icon: Icon, action }, i) => (
-                      <button key={i} onClick={action} className="text-left p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-all">
-                        <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center mb-2"><Icon className="w-4 h-4 text-primary" /></div>
-                        <p className="text-xs font-semibold mb-0.5">{label}</p>
-                        <p className="text-[10px] text-muted-foreground">{desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                  <div className="p-4 border-b border-border flex items-center gap-3">
-                    <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center"><Download className="w-4 h-4 text-green-600" /></div>
-                    <div>
-                      <h3 className="text-sm font-semibold">Unduh Data Penting</h3>
-                      <p className="text-[11px] text-muted-foreground">Data diunduh dalam format CSV</p>
-                    </div>
-                  </div>
-                  <div className="divide-y divide-border/50">
-                    {DOWNLOADS.map(({ label, desc, icon: Icon, action }, i) => (
-                      <div key={i} className="p-4 flex items-center gap-3">
-                        <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center flex-shrink-0"><Icon className="w-4 h-4 text-muted-foreground" /></div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold">{label}</p>
-                          <p className="text-[10px] text-muted-foreground">{desc}</p>
-                        </div>
-                        <button onClick={action} className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[11px] font-medium hover:bg-primary/90 transition-colors flex items-center gap-1.5 flex-shrink-0">
-                          <Download className="w-3 h-3" /> Unduh
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+              <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                <div className="p-4 border-b border-border"><h3 className="text-sm font-semibold">Daftar Akun Pengguna</h3><p className="text-[11px] text-muted-foreground">{accounts.length} akun terdaftar</p></div>
+                <table className="w-full"><tbody>
+                  {accounts.map(a => (<tr key={a.id} className="border-b border-border/50"><td className="px-4 py-2 text-xs font-medium">{a.name}</td><td className="px-4 py-2 text-xs text-muted-foreground">{a.email}</td><td className="px-4 py-2"><span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">{a.role}</span></td><td className="px-4 py-2 text-right"><button onClick={() => { setEditing(a); setForm({ name: a.name, email: a.email, password: "" }) }} className="text-[10px] text-primary hover:underline mr-2">Edit</button><button onClick={() => handleDelete(a)} className="text-[10px] text-red-500 hover:underline">Hapus</button></td></tr>))}
+                  {accounts.length === 0 && <tr><td className="px-4 py-6 text-center text-xs text-muted-foreground">Belum ada akun pengguna.</td></tr>}
+                </tbody></table></div>
+            </div>
+          )}
+          {activePanel === "riwayat" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Riwayat aktivitas (placeholder).</div>}
+          {activePanel === "layanan" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Daftar layanan (placeholder).</div>}
         </main>
       </div>
     </div>
@@ -4110,11 +3721,25 @@ export default function App() {
   const [authTab, setAuthTab] = useState<AuthTab>("login")
   const [activeMenu, setActiveMenu] = useState("Dashboard")
   // ✅ Data user terpusat — dipakai semua sidebar & halaman
-  const [user, setUser] = useState<UserInfo>({ name: "Anisa Rahmawati", email: "anisa@email.com", phone: "081234567890" })
+  const [user, setUser] = useState<UserInfo>({ name: "Anisa Rahmawati", email: "anisa@email.com", phone: "081234567890", role: "Pengguna" })
   // ✅ Daftar akun pengguna — dibuat dari menu Akses Pengguna, dipakai untuk login
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
   // ✅ Daftar akun admin — dibuat dari menu Akses Admin, dipakai untuk login
   const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>([])
+  // ✅ LANGKAH 5: muat akun dari database supaya daftar tidak pernah kosong
+  const syncAccounts = async () => {
+    try {
+      const [u, a] = await Promise.all([
+        fetch("http://localhost:5000/api/users").then(r => r.json()),
+        fetch("http://localhost:5000/api/admins").then(r => r.json()),
+      ])
+      if (u.success) setUserAccounts(u.data.map((r: any) => ({ id: r.id, name: r.name, email: r.email, photo: r.photo_url ?? null, password: "", role: r.role ?? "Pengguna" })))
+      if (a.success) setAdminAccounts(a.data.map((r: any) => ({ id: r.id, name: r.name, email: r.email, photo: r.photo_url ?? null, password: "", role: r.role ?? "Admin" })))
+    } catch (e) {
+      console.error("Gagal memuat akun:", e)
+    }
+  }
+  useEffect(() => { syncAccounts() }, [])
   // ✅ BARU: undangan yang sedang diedit (null = buat baru)
   const [editingInvitation, setEditingInvitation] = useState<any>(null)
   const openEditor = (inv: any = null) => {
@@ -4130,6 +3755,7 @@ export default function App() {
       case "login": return <AuthPage setPage={setPage} initialTab={authTab} setUser={setUser} userAccounts={userAccounts} adminAccounts={adminAccounts} />
       case "dashboard": return <DashboardPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} openEditor={openEditor} />
       case "editor": return <EditorPage setPage={setPage} initialInvitation={editingInvitation} />
+      case "create-invitation": return <CreateInvitationPage setPage={setPage} user={user} openEditor={openEditor} />
       case "checkout": return <CheckoutPage setPage={setPage} />
       case "payment-method": return <PaymentMethodPage setPage={setPage} />
       case "payment-waiting": return <PaymentWaitingPage setPage={setPage} />
@@ -4143,8 +3769,8 @@ export default function App() {
       case "qr-checkin": return <QRCheckInPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} />
       case "domain": return <DomainPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} />
       case "settings": return <SettingsPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} setUser={setUser} />
-      case "admin-access": return <AdminAccessPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} accounts={userAccounts} setAccounts={setUserAccounts} adminAccounts={adminAccounts} setAdminAccounts={setAdminAccounts} />
-      case "user-access": return <UserAccessPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} accounts={userAccounts} setAccounts={setUserAccounts} />
+      case "admin-access": return <AdminAccessPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} onChanged={syncAccounts} />
+      case "user-access": return <UserAccessPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} onChanged={syncAccounts} />
       default: return <DashboardPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} openEditor={openEditor} />
     }
   }
