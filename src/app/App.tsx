@@ -12,6 +12,7 @@ import {
   Shield, Search, Receipt, Package, Lock
 } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+import SeatingPage from "../pages/SeatingPage"
 import { Toaster, toast } from "sonner"
 // ─── TYPE DEFINITIONS ────────────────────────────────────────────────────────
 type Page =
@@ -35,6 +36,7 @@ type Page =
   | "admin-access"
   | "user-access"
   | "create-invitation"
+  | "seating"
 
 type AuthTab = "login" | "register"
 type UserInfo = { id?: number; name: string; email: string; phone: string; role: string }
@@ -55,6 +57,15 @@ const SIDEBAR_NAV = [
   { icon: Shield, label: "Akses Admin" },
   { icon: UserPlus, label: "Akses Pengguna" },
 ]
+
+// ✅ Sidebar berbasis role: pengguna biasa tidak melihat menu admin
+const ADMIN_ROLES = ["admin utama", "admin", "editor", "marketing", "viewer"]
+const isAdminRole = (role: string) => ADMIN_ROLES.includes((role ?? "").toLowerCase())
+const navFor = (role: string) =>
+  SIDEBAR_NAV.filter(({ label }) => isAdminRole(role) || (label !== "Akses Admin" && label !== "Akses Pengguna"))
+// ✅ KABEL IDENTITAS: tambahkan ?user_id= ke permintaan baca supaya backend menyaring per pemilik
+const withUser = (url: string, u: { id?: number }) =>
+  u?.id ? `${url}${url.includes("?") ? "&" : "?"}user_id=${u.id}` : url
 const EDITOR_TABS = [
   { icon: Layout, label: "Halaman" },
   { icon: Palette, label: "Tema" },
@@ -64,15 +75,6 @@ const EDITOR_TABS = [
   { icon: Camera, label: "Foto" },
 ]
 const PAGES_LIST = ["Opening", "Mempelai", "Akad", "Resepsi", "Galeri", "RSVP", "Ucapan", "Penutup"]
-const CHART_DATA = [
-  { day: "Sen", views: 120 },
-  { day: "Sel", views: 185 },
-  { day: "Rab", views: 148 },
-  { day: "Kam", views: 220 },
-  { day: "Jum", views: 390 },
-  { day: "Sab", views: 530 },
-  { day: "Min", views: 447 },
-]
 const PACKAGES = [
   {
     id: "basic",
@@ -104,15 +106,6 @@ const PACKAGES = [
     popular: false,
     color: "border-border",
   },
-]
-const MOCK_TRANSACTIONS = [
-  { id: "INV-20250112-001", date: "12 Jan 2025", package: "Premium", customer: "Anisa & Raka", method: "BCA Virtual Account", amount: 349000, status: "Paid" },
-  { id: "INV-20250110-002", date: "10 Jan 2025", package: "Standard", customer: "Dewi & Fandi", method: "GoPay", amount: 199000, status: "Paid" },
-  { id: "INV-20250108-003", date: "8 Jan 2025", package: "Basic", customer: "Rina & Ahmad", method: "QRIS", amount: 99000, status: "Expired" },
-  { id: "INV-20250105-004", date: "5 Jan 2025", package: "Premium", customer: "Maya & Bimo", method: "OVO", amount: 349000, status: "Pending" },
-  { id: "INV-20250103-005", date: "3 Jan 2025", package: "Standard", customer: "Sari & Deni", method: "BNI Virtual Account", amount: 199000, status: "Failed" },
-  { id: "INV-20241228-006", date: "28 Des 2024", package: "Premium", customer: "Hani & Rizki", method: "Mandiri Virtual Account", amount: 349000, status: "Paid" },
-  { id: "INV-20241225-007", date: "25 Des 2024", package: "Basic", customer: "Lia & Yusuf", method: "ShopeePay", amount: 99000, status: "Paid" },
 ]
 const fmt = (n: number) => "Rp " + n.toLocaleString("id-ID")
 const THEMES = [
@@ -432,7 +425,7 @@ function TemplatesPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Template" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -497,11 +490,12 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
   const [invitations, setInvitations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const isAdmin = isAdminRole(user.role)
   // ✅ State untuk hapus undangan
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
   useEffect(() => {
-    fetch('http://localhost:5000/api/invitations')
+    fetch(withUser('http://localhost:5000/api/invitations', user))
       .then(response => response.json())
       .then(data => {
         if (data.success) setInvitations(data.data)
@@ -572,7 +566,7 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Undangan Saya" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -634,8 +628,10 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
                         </div>
                         <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                           <button onClick={(e) => { e.stopPropagation(); openEditor(inv) }} className="px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs shadow-md hover:bg-primary/90 transition-colors">Edit</button>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`http://localhost:5173/?undangan=${inv.id}`); toast.success("Link undangan disalin! Bagikan ke tamu Anda.") }} className="px-3 py-1.5 bg-white text-foreground rounded-full text-xs shadow-md hover:bg-muted transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
                           {/* ✅ BARU: tombol Hapus dengan konfirmasi */}
                           <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(inv) }} className="px-3 py-1.5 bg-red-500 text-white rounded-full text-xs shadow-md hover:bg-red-600 transition-colors">Hapus</button>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`http://localhost:5173/?undangan=${inv.id}`); toast.success("Link undangan disalin! Bagikan ke tamu Anda.") }} className="px-3 py-1.5 bg-white text-foreground rounded-full text-xs shadow-md hover:bg-muted transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
                         </div>
                       </div>
                       <div className="px-3.5 py-2.5 flex items-center justify-between">
@@ -681,21 +677,27 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("Semua")
-  // ✅ BARU: data tamu asli dari backend (tabel guests)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newGuest, setNewGuest] = useState({ name: "", whatsapp: "", table_number: "", rsvp_status: "Masih Ragu" })
+  const [savingGuest, setSavingGuest] = useState(false)
+  const [editingGuest, setEditingGuest] = useState<any | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  // ✅ data tamu asli dari backend (tabel guests)
   const [guests, setGuests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    fetch('http://localhost:5000/api/guests')
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) setGuests(data.data)
-        setLoading(false)
-      })
-      .catch(error => {
-        console.error('Gagal mengambil data tamu:', error)
-        setLoading(false)
-      })
-  }, [])
+  const loadGuests = async () => {
+    try {
+      const res = await fetch(withUser('http://localhost:5000/api/guests', user))
+      const data = await res.json()
+      if (data.success) setGuests(data.data)
+    } catch (error) {
+      console.error('Gagal mengambil data tamu:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => { loadGuests() }, [])
   // ✅ Waktu relatif dari created_at
   const timeAgo = (iso: string) => {
     if (!iso) return "-"
@@ -716,6 +718,68 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
     if (status === "Hadir") return "bg-green-50 text-green-600 border-green-200"
     if (status === "Tidak Hadir") return "bg-red-50 text-red-500 border-red-200"
     return "bg-yellow-50 text-yellow-600 border-yellow-200"
+  }
+  // ✅ FUNGSI SIMPAN TAMU — wajib DI DALAM komponen supaya melihat semua state
+  // ✅ SIMPAN TAMU (buat baru ATAU edit) ke database
+  const handleSaveGuest = async () => {
+    if (!newGuest.name.trim()) { toast.error("Nama tamu wajib diisi!"); return }
+    setSavingGuest(true)
+    try {
+      const isEdit = !!editingGuest
+      const url = isEdit ? `http://localhost:5000/api/guests/${editingGuest.id}` : "http://localhost:5000/api/guests"
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newGuest.name,
+          whatsapp: newGuest.whatsapp || null,
+          table_number: newGuest.table_number || null,
+          rsvp_status: newGuest.rsvp_status || "Masih Ragu",
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(isEdit ? `Perubahan tamu "${newGuest.name}" disimpan!` : `Tamu "${newGuest.name}" berhasil ditambahkan!`)
+        setNewGuest({ name: "", whatsapp: "", table_number: "", rsvp_status: "Masih Ragu" })
+        setEditingGuest(null)
+        setShowAddModal(false)
+        loadGuests()
+      } else {
+        toast.error(data.message || "Gagal menyimpan tamu.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Gagal terhubung ke server.")
+    } finally {
+      setSavingGuest(false)
+    }
+  }
+  // ✅ Buka modal dalam mode edit
+  const openEditGuest = (g: any) => {
+    setEditingGuest(g)
+    setNewGuest({ name: g.name ?? "", whatsapp: g.whatsapp ?? "", table_number: g.table_number ?? "", rsvp_status: g.rsvp_status ?? "Masih Ragu" })
+    setShowAddModal(true)
+  }
+  // ✅ Hapus tamu dari database
+  const handleDeleteGuest = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`http://localhost:5000/api/guests/${deleteTarget.id}`, { method: "DELETE" })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Tamu "${deleteTarget.name}" dihapus.`)
+        setDeleteTarget(null)
+        loadGuests()
+      } else {
+        toast.error(data.message || "Gagal menghapus tamu.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Gagal terhubung ke server.")
+    } finally {
+      setDeleting(false)
+    }
   }
   const handleNav = (label: string) => {
     setActiveMenu(label)
@@ -744,7 +808,7 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Data Tamu" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -773,12 +837,11 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
               <p className="text-[11px] text-muted-foreground hidden sm:block">Kelola daftar tamu undangan Anda</p>
             </div>
           </div>
-          <button onClick={() => toast.info("Fitur tambah tamu akan segera hadir!")} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all">
+          <button onClick={() => { setEditingGuest(null); setNewGuest({ name: "", whatsapp: "", table_number: "", rsvp_status: "Masih Ragu" }); setShowAddModal(true) }} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all">
             <Plus className="w-3.5 h-3.5" /> Tambah Tamu
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-5">
-          {/* ✅ Kartu statistik dari data asli */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
               { label: "Total Tamu", value: loading ? "…" : guests.length, color: "text-blue-500 bg-blue-50", icon: Users },
@@ -825,7 +888,12 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
                         <td className="px-4 py-3"><span className={`text-[10px] font-medium px-2.5 py-1 rounded-full border ${getStatusColor(guest.rsvp_status)}`}>{guest.rsvp_status}</span></td>
                         <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{timeAgo(guest.created_at)}</td>
                         <td className="px-4 py-3 text-xs whitespace-nowrap">{guest.table_number ?? "-"}</td>
-                        <td className="px-4 py-3"><button onClick={() => toast.info("Fitur detail tamu akan segera hadir!")} className="text-[10px] text-primary hover:underline whitespace-nowrap">Detail</button></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 whitespace-nowrap">
+                            <button onClick={() => openEditGuest(guest)} className="text-[10px] text-primary hover:underline">Edit</button>
+                            <button onClick={() => setDeleteTarget(guest)} className="text-[10px] text-red-500 hover:underline">Hapus</button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -836,6 +904,61 @@ function GuestDataPage({ setPage, activeMenu, setActiveMenu, user }: {
           </div>
         </main>
       </div>
+      {/* ✅ MODAL TAMBAH TAMU — di dalam root div komponen */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-card rounded-2xl border border-border p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">{editingGuest ? "Edit Tamu" : "Tambah Tamu Baru"}</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setPage("seating")} className="px-4 py-2 border border-border bg-card rounded-full text-xs font-medium flex items-center gap-1.5 hover:border-primary hover:text-primary transition-all">
+                  <MapPin className="w-3.5 h-3.5" /> Denah Meja
+                </button>
+                <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all">
+                  <Plus className="w-3.5 h-3.5" /> Tambah Tamu
+                </button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Nama Tamu <span className="text-red-500">*</span></label>
+                <input value={newGuest.name} onChange={e => setNewGuest({ ...newGuest, name: e.target.value })} placeholder="Contoh: Budi Santoso" className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Nomor WhatsApp</label>
+                <input value={newGuest.whatsapp} onChange={e => setNewGuest({ ...newGuest, whatsapp: e.target.value })} placeholder="Contoh: 08123456789" className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Nomor Meja</label>
+                <input value={newGuest.table_number} onChange={e => setNewGuest({ ...newGuest, table_number: e.target.value })} placeholder="Contoh: Meja 1" className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Status RSVP</label>
+                <select value={newGuest.rsvp_status} onChange={e => setNewGuest({ ...newGuest, rsvp_status: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary">
+                  <option>Masih Ragu</option>
+                  <option>Hadir</option>
+                  <option>Tidak Hadir</option>
+                  <option>Belum Konfirmasi</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => { setShowAddModal(false); setEditingGuest(null) }} disabled={savingGuest} className="px-4 py-2 border border-border rounded-lg text-xs hover:bg-muted transition-colors disabled:opacity-50">Batal</button>
+              <button onClick={handleSaveGuest} disabled={savingGuest} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {savingGuest ? "Menyimpan..." : editingGuest ? "Simpan Perubahan" : "Simpan Tamu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        title="Hapus Tamu?"
+        description={`Tamu "${deleteTarget?.name ?? ""}" akan dihapus permanen dari daftar tamu undangan Anda.`}
+        busy={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteGuest}
+      />
     </div>
   )
 }
@@ -854,7 +977,7 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
   const [rsvps, setRsvps] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    fetch('http://localhost:5000/api/rsvps')
+    fetch(withUser('http://localhost:5000/api/rsvps', user))
       .then(response => response.json())
       .then(data => {
         if (data.success) setRsvps(data.data)
@@ -882,6 +1005,8 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
     if (status === "Tidak Hadir") return "bg-red-50 text-red-500 border-red-200"
     return "bg-yellow-50 text-yellow-600 border-yellow-200"
   }
+
+
   const handleNav = (label: string) => {
     setActiveMenu(label)
     if (label === "Dashboard") setPage("dashboard")
@@ -909,7 +1034,7 @@ function RSVPPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "RSVP" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -1007,7 +1132,7 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
   const [envelopes, setEnvelopes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    fetch('http://localhost:5000/api/envelopes')
+    fetch(withUser('http://localhost:5000/api/envelopes', user))
       .then(response => response.json())
       .then(data => {
         if (data.success) setEnvelopes(data.data)
@@ -1055,7 +1180,7 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Amplop Digital" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -1122,7 +1247,7 @@ function DigitalEnvelopePage({ setPage, activeMenu, setActiveMenu, user }: {
                 filteredEnvelopes.map((env) => (
                   <div key={env.id} className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{String(env.name ?? "?").split(" ").map((n: string) => n[0]).join("").substring(0, 2)}</div>
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">{String(env.sender_name ?? "?").split(" ").map((n: string) => n[0]).join("").substring(0, 2)}</div>
                       <div>
                         <p className="text-sm font-semibold">{env.sender_name}</p>
                         <p className="text-[10px] text-muted-foreground">{fmtTanggal(env.created_at)} • "{env.message}"</p>
@@ -1237,7 +1362,7 @@ function QRCheckInPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "QR Check-In" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -1347,11 +1472,11 @@ function QRCheckInPage({ setPage, activeMenu, setActiveMenu, user }: {
 }
 
 
-// ─── DOMAIN PAGE ────────────────────────────────────────────────────────────
+/// ─── DOMAIN PAGE ────────────────────────────────────────────────────────────
 type CustomDomain = {
   id: number
   name: string
-  status: "pending" | "active"
+  status: "pending" | "active" | "rejected"
   addedAt: string
 }
 
@@ -1363,17 +1488,42 @@ function DomainPage({ setPage, activeMenu, setActiveMenu, user }: {
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [customDomain, setCustomDomain] = useState("")
-  // ✅ OPSI A: daftar domain kustom + status verifikasi
   const [customDomains, setCustomDomains] = useState<CustomDomain[]>([])
   const [verifyingId, setVerifyingId] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
     toast.success("Berhasil disalin ke clipboard!")
   }
 
-  // ✅ Tambah domain kustom → masuk daftar dengan status "Menunggu Verifikasi"
-  const handleAddDomain = () => {
+  // ✅ LANGKAH 3A: muat domain milik user ini dari database
+  const loadDomains = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/domains")
+      const data = await res.json()
+      if (data.success) {
+        // Filter: hanya domain milik user yang sedang login
+        const mine = (data.data || [])
+          .filter((r: any) => r.user_id === user.id)
+          .map((r: any) => ({
+            id: r.id,
+            name: r.domain_name,
+            status: r.status === "active" ? "active" : (r.status === "rejected" ? "rejected" : "pending"),
+            addedAt: new Date(r.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }),
+          }))
+        setCustomDomains(mine)
+      }
+    } catch (e) {
+      console.error("Gagal memuat domain:", e)
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => { loadDomains() }, [user.id])
+
+  // ✅ LANGKAH 3B: tambah domain → simpan ke database dengan status "pending"
+  const handleAddDomain = async () => {
     const name = customDomain.trim().toLowerCase()
     if (!name) { toast.error("Silakan masukkan nama domain terlebih dahulu!"); return }
     if (!/^(?!-)[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(name)) {
@@ -1384,28 +1534,71 @@ function DomainPage({ setPage, activeMenu, setActiveMenu, user }: {
       toast.error("Domain ini sudah ditambahkan sebelumnya!")
       return
     }
-    const addedAt = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
-    setCustomDomains(prev => [...prev, { id: Date.now(), name, status: "pending", addedAt }])
-    setCustomDomain("")
-    toast.success(`Domain ${name} ditambahkan! Pasang record DNS lalu verifikasi.`)
+    if (!user.id) { toast.error("Akun tidak terhubung ke database. Silakan login ulang."); return }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.id, domain_name: name }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCustomDomain("")
+        toast.success(`Domain ${name} ditambahkan! Pasang record DNS lalu verifikasi.`)
+        loadDomains()
+      } else {
+        toast.error(data.message || "Gagal menambahkan domain.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Tidak dapat terhubung ke server.")
+    }
   }
 
-  // ✅ Simulasi cek DNS → setelah ~2 detik status jadi Aktif + SSL
-  const handleVerify = (id: number) => {
+  // ✅ LANGKAH 3C: verifikasi DNS → update status jadi "active" di database
+  const handleVerify = async (id: number) => {
     const domain = customDomains.find(d => d.id === id)
     if (!domain) return
     setVerifyingId(id)
-    setTimeout(() => {
-      setCustomDomains(prev => prev.map(d => d.id === id ? { ...d, status: "active" } : d))
+    try {
+      const res = await fetch(`http://localhost:5000/api/domains/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active", dns_verified: true, ssl_enabled: true, ssl_status: "active" }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Domain ${domain.name} terverifikasi! SSL/HTTPS aktif.`)
+        loadDomains()
+      } else {
+        toast.error(data.message || "Verifikasi gagal.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Tidak dapat terhubung ke server.")
+    } finally {
       setVerifyingId(null)
-      toast.success(`Domain ${domain.name} terverifikasi! SSL/HTTPS aktif.`)
-    }, 1800)
+    }
   }
 
-  const handleRemove = (id: number) => {
+  // ✅ LANGKAH 3D: hapus domain dari database
+  const handleRemove = async (id: number) => {
     const domain = customDomains.find(d => d.id === id)
-    setCustomDomains(prev => prev.filter(d => d.id !== id))
-    if (domain) toast.info(`Domain ${domain.name} dihapus.`)
+    if (!domain) return
+    try {
+      const res = await fetch(`http://localhost:5000/api/domains/${id}`, { method: "DELETE" })
+      const data = await res.json()
+      if (data.success) {
+        toast.info(`Domain ${domain.name} dihapus.`)
+        loadDomains()
+      } else {
+        toast.error(data.message || "Gagal menghapus domain.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Tidak dapat terhubung ke server.")
+    }
   }
 
   const handleNav = (label: string) => {
@@ -1438,7 +1631,7 @@ function DomainPage({ setPage, activeMenu, setActiveMenu, user }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Domain" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -1501,16 +1694,20 @@ function DomainPage({ setPage, activeMenu, setActiveMenu, user }: {
               </div>
             </div>
 
-            {/* ── 3) Daftar Domain Kustom (OPSI A) ── */}
+            {/* ── 3) Daftar Domain Kustom (dari database) ── */}
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
               <div className="p-4 border-b border-border flex items-center gap-3">
                 <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center"><Globe className="w-4 h-4 text-primary" /></div>
                 <div>
                   <h3 className="text-sm font-semibold">Daftar Domain Kustom</h3>
-                  <p className="text-[11px] text-muted-foreground">{customDomains.length} domain • {customDomains.filter(d => d.status === "active").length} aktif</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {loading ? "Memuat..." : `${customDomains.length} domain • ${customDomains.filter(d => d.status === "active").length} aktif`}
+                  </p>
                 </div>
               </div>
-              {customDomains.length === 0 ? (
+              {loading ? (
+                <div className="py-10 text-center text-muted-foreground text-xs">Memuat domain...</div>
+              ) : customDomains.length === 0 ? (
                 <div className="py-10 text-center text-muted-foreground text-xs">Belum ada domain kustom. Tambahkan domain pribadi Anda di atas, lalu pasang record DNS & verifikasi.</div>
               ) : (
                 <div>
@@ -1724,7 +1921,7 @@ function SettingsPage({ setPage, activeMenu, setActiveMenu, user, setUser }: {
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleNav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${label === "Pengaturan" ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -1884,7 +2081,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
       })
   }, [])
   useEffect(() => {
-    fetch('http://localhost:5000/api/dashboard/summary')
+    fetch(withUser('http://localhost:5000/api/dashboard/summary', user))
       .then(response => response.json())
       .then(data => {
         if (data.success) setSummary(data.data)
@@ -1894,7 +2091,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
       })
   }, [])
   useEffect(() => {
-    fetch('http://localhost:5000/api/transactions')
+    fetch(withUser('http://localhost:5000/api/transactions', user))
       .then(response => response.json())
       .then(data => {
         if (data.success) setTransactions(data.data)
@@ -1962,6 +2159,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [txFilter, setTxFilter] = useState("Semua")
   const [txSearch, setTxSearch] = useState("")
+  const isAdmin = isAdminRole(user.role)
   const handleMenu = (label: string) => {
     setActiveMenu(label)
     if (label === "Dashboard") { setPage("dashboard"); setSidebarOpen(false) }
@@ -1979,6 +2177,30 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
     else if (label === "Transaksi") { setPage("dashboard"); setSidebarOpen(false) }
     else { toast.info(`Halaman ${label} akan segera hadir!`); setSidebarOpen(false) }
   }
+
+  // ✅ GRAFIK ASLI: pendapatan per hari dari transaksi Paid (7 hari terakhir)
+  const buildRevenueChart = () => {
+    const days: { key: string; label: string; total: number }[] = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      days.push({
+        key: d.toISOString().slice(0, 10),
+        label: d.toLocaleDateString("id-ID", { weekday: "short" }),
+        total: 0,
+      })
+    }
+    transactions.forEach(t => {
+      if ((t.status ?? "").toLowerCase() !== "paid") return
+      const dateStr = String(t.payment_date || t.created_at || "").slice(0, 10)
+      const slot = days.find(x => x.key === dateStr)
+      if (slot) slot.total += Number(t.total_amount) || 0
+    })
+    return days
+  }
+  const revenueChart = buildRevenueChart()
+  const revenue7 = revenueChart.reduce((s, x) => s + x.total, 0)
+
   const filtered = transactions.filter(t => {
     const matchFilter = txFilter === "Semua" || t.status === txFilter
     const q = txSearch.toLowerCase()
@@ -1995,7 +2217,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
           </button>
         </div>
         <nav className="flex-1 py-3 overflow-y-auto">
-          {SIDEBAR_NAV.map(({ icon: Icon, label }) => (
+          {navFor(user.role).map(({ icon: Icon, label }) => (
             <button key={label} onClick={() => handleMenu(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}>
               <Icon className="w-4 h-4 flex-shrink-0" />{label}
             </button>
@@ -2025,7 +2247,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-lg hover:bg-muted transition-colors"><Bell className="w-4 h-4" /><span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full" /></button>
+            <NotificationBell user={user} />
             <button onClick={handleCreateInvitation} className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all hover:shadow-[0_2px_12px_rgba(196,149,74,0.35)]">
               <Plus className="w-3.5 h-3.5" /> Buat Undangan
             </button>
@@ -2036,8 +2258,8 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                 <div>
-                  <h2 className="font-semibold">Riwayat Transaksi</h2>
-                  <p className="text-xs text-muted-foreground">{txLoading ? "Memuat..." : `${transactions.length} transaksi total`}</p>
+                  <h2 className="font-semibold">{isAdmin ? "Riwayat Transaksi" : "Riwayat Pembelian"}</h2>
+                  <p className="text-xs text-muted-foreground">{txLoading ? "Memuat..." : `${transactions.length} ${isAdmin ? "transaksi total" : "pembelian total"}`}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
@@ -2088,19 +2310,23 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-                {[
-                  { label: "Total Pendapatan", value: txLoading ? "…" : fmt(totalPendapatan), icon: TrendingUp, color: "text-green-500 bg-green-50" },
-                  { label: "Transaksi Berhasil", value: txLoading ? "…" : String(txPaid.length), icon: CheckCircle2, color: "text-primary bg-primary/10" },
-                  { label: "Menunggu Bayar", value: txLoading ? "…" : String(txPending.length), icon: Clock, color: "text-yellow-500 bg-yellow-50" },
-                  { label: "Gagal / Expired", value: txLoading ? "…" : String(txFailed.length), icon: XCircle, color: "text-red-500 bg-red-50" },
-                ].map(({ label, value, icon: Icon, color }, i) => (
-                  <div key={i} className="bg-card rounded-xl p-4 border border-border">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
-                    <p className="text-lg font-bold">{value}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
-                  </div>
-                ))}
+                {isAdmin && (<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                  {[
+                    { label: "Total Pendapatan", value: txLoading ? "…" : fmt(totalPendapatan), icon: TrendingUp, color: "text-green-500 bg-green-50" },
+                    { label: "Transaksi Berhasil", value: txLoading ? "…" : String(txPaid.length), icon: CheckCircle2, color: "text-primary bg-primary/10" },
+                    { label: "Menunggu Bayar", value: txLoading ? "…" : String(txPending.length), icon: Clock, color: "text-yellow-500 bg-yellow-50" },
+                    { label: "Gagal / Expired", value: txLoading ? "…" : String(txFailed.length), icon: XCircle, color: "text-red-500 bg-red-50" },
+                  ].map(({ label, value, icon: Icon, color }, i) => (
+                    <div key={i} className="bg-card rounded-xl p-4 border border-border">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${color}`}><Icon className="w-4 h-4" /></div>
+                      <p className="text-lg font-bold">{value}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+                )}
               </div>
+
             </div>
           ) : (
             <>
@@ -2118,27 +2344,29 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
                   </div>
                 ))}
               </div>
-              <div className="grid lg:grid-cols-3 gap-4 mb-5">
-                <div className="lg:col-span-2 bg-card rounded-2xl p-5 border border-border">
-                  <div className="flex items-center justify-between mb-5">
-                    <div><h3 className="text-sm font-semibold">Statistik Kunjungan</h3><p className="text-[11px] text-muted-foreground">7 hari terakhir</p></div>
-                    <select className="text-xs border border-border rounded-lg px-2 py-1.5 bg-muted outline-none cursor-pointer"><option>7 hari</option><option>30 hari</option></select>
+              <div className={`grid ${isAdmin ? "lg:grid-cols-3" : "lg:grid-cols-1"} gap-4 mb-5`}>
+                {isAdmin && (
+                  <div className="lg:col-span-2 bg-card rounded-2xl p-5 border border-border">
+                    <div className="flex items-center justify-between mb-5">
+                      <div><h3 className="text-sm font-semibold">Statistik Pendapatan</h3><p className="text-[11px] text-muted-foreground">Transaksi Paid • 7 hari terakhir • Total {fmt(revenue7)}</p></div>
+                      <select className="text-xs border border-border rounded-lg px-2 py-1.5 bg-muted outline-none cursor-pointer"><option>7 hari</option><option>30 hari</option></select>
+                    </div>
+                    <ResponsiveContainer width="100%" height={190}>
+                      <AreaChart data={revenueChart} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
+                        <defs>
+                          <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#C4954A" stopOpacity={0.18} />
+                            <stop offset="95%" stopColor="#C4954A" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#8C7456" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "#8C7456" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000000 ? `${(v / 1000000).toLocaleString("id-ID", { maximumFractionDigits: 1 })}jt` : v >= 1000 ? `${Math.round(v / 1000)}rb` : String(v)} />
+                        <Tooltip formatter={(value: any) => [fmt(Number(value)), "Pendapatan"]} labelFormatter={(l: any) => `Hari: ${l}`} contentStyle={{ background: "#fff", border: "1px solid rgba(196,149,74,0.2)", borderRadius: "0.75rem", fontSize: 12 }} cursor={{ stroke: "rgba(196,149,74,0.2)" }} />
+                        <Area type="monotone" dataKey="total" stroke="#C4954A" strokeWidth={2} fill="url(#goldGrad)" dot={false} activeDot={{ r: 4, fill: "#C4954A" }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
-                  <ResponsiveContainer width="100%" height={190}>
-                    <AreaChart data={CHART_DATA} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                      <defs>
-                        <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#C4954A" stopOpacity={0.18} />
-                          <stop offset="95%" stopColor="#C4954A" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#8C7456" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: "#8C7456" }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: "#fff", border: "1px solid rgba(196,149,74,0.2)", borderRadius: "0.75rem", fontSize: 12 }} cursor={{ stroke: "rgba(196,149,74,0.2)" }} />
-                      <Area type="monotone" dataKey="views" stroke="#C4954A" strokeWidth={2} fill="url(#goldGrad)" dot={false} activeDot={{ r: 4, fill: "#C4954A" }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                )}
                 <div className="bg-card rounded-2xl p-5 border border-border">
                   <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold">RSVP Terbaru</h3><button onClick={() => setPage("rsvp")} className="text-xs text-primary hover:underline">Lihat semua</button></div>
                   {!summary || !summary.recentRsvps || summary.recentRsvps.length === 0 ? (
@@ -2284,6 +2512,12 @@ function EditorPage({ setPage, initialInvitation }: { setPage: (p: Page) => void
   const [bridePhoto, setBridePhoto] = useState<string | null>(s.bridePhoto ?? null)
   const [groomPhoto, setGroomPhoto] = useState<string | null>(s.groomPhoto ?? null)
   const [couplePhotos, setCouplePhotos] = useState<{ id: number; url: string }[]>(s.couplePhotos ?? [])
+  // ✅ STATE FORM RSVP (preview ponsel) — terhubung ke database
+  const [rsvpName, setRsvpName] = useState("")
+  const [rsvpStatus, setRsvpStatus] = useState("Hadir")
+  const [rsvpMessage, setRsvpMessage] = useState("")
+  const [rsvpSending, setRsvpSending] = useState(false)
+  const [ucapanList, setUcapanList] = useState<any[]>([])
   const audioRef = useRef<HTMLAudioElement | null>(null)
   // ✅ ID undangan tersimpan (null = buat baru; terisi = Simpan jadi PUT/update)
   const [savedId, setSavedId] = useState<number | null>(initialInvitation?.id ?? null)
@@ -2314,6 +2548,48 @@ function EditorPage({ setPage, initialInvitation }: { setPage: (p: Page) => void
   useEffect(() => {
     return () => { audioRef.current?.pause() }
   }, [])
+
+  // ✅ Muat ucapan asli dari tabel rsvps
+  const loadUcapan = async () => {
+    try {
+      const r = await fetch("http://localhost:5000/api/rsvps")
+      const d = await r.json()
+      if (d.success) setUcapanList(d.data.slice().reverse().slice(0, 5))
+    } catch (e) { console.error(e) }
+  }
+  useEffect(() => { loadUcapan() }, [])
+
+  // ✅ Kirim RSVP + ucapan ke backend
+  const handleSendRsvp = async () => {
+    if (!rsvpName.trim()) { toast.error("Nama wajib diisi dulu!"); return }
+    setRsvpSending(true)
+    try {
+      const res = await fetch("http://localhost:5000/api/rsvps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: rsvpName.trim(),
+          message: rsvpMessage.trim() || null,
+          attendance_status: rsvpStatus,
+          number_of_guests: rsvpStatus === "Hadir" ? 1 : 0,
+        }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        toast.success(`Terima kasih, ${rsvpName.trim()}! RSVP & ucapan tersimpan.`)
+        setRsvpName(""); setRsvpMessage(""); setRsvpStatus("Hadir")
+        loadUcapan()
+      } else {
+        toast.error(d.message || "Gagal mengirim RSVP.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Tidak dapat terhubung ke server.")
+    } finally {
+      setRsvpSending(false)
+    }
+  }
+
   const readImage = (file: File, cb: (url: string) => void) => {
     const reader = new FileReader()
     reader.onload = () => cb(reader.result as string)
@@ -2543,24 +2819,29 @@ function EditorPage({ setPage, initialInvitation }: { setPage: (p: Page) => void
     if (activeSection === "RSVP") return (
       <div className="p-6 space-y-3" style={{ color: textColor }}>
         <p className="text-[9px] tracking-[0.2em] uppercase text-center" style={{ opacity: 0.6 }}>RSVP</p>
-        <input placeholder="Nama Anda" className="w-full px-3 py-2 text-[10px] rounded-lg border border-border bg-white outline-none" />
+        <input value={rsvpName} onChange={e => setRsvpName(e.target.value)} placeholder="Nama Anda" className="w-full px-3 py-2 text-[10px] rounded-lg border border-border bg-white outline-none" style={{ color: "#2A1F1A" }} />
         <div className="flex gap-2">
-          <button className="flex-1 py-2 text-white text-[10px] rounded-full" style={{ backgroundColor: accentColor }}>Hadir</button>
-          <button className="flex-1 py-2 text-[10px] rounded-full border border-border" style={{ color: textColor }}>Tidak Hadir</button>
+          <button onClick={() => setRsvpStatus("Hadir")} className="flex-1 py-2 text-[10px] rounded-full" style={rsvpStatus === "Hadir" ? { backgroundColor: accentColor, color: "#fff" } : { color: textColor, border: "1px solid #e5e0d8" }}>Hadir</button>
+          <button onClick={() => setRsvpStatus("Tidak Hadir")} className="flex-1 py-2 text-[10px] rounded-full" style={rsvpStatus === "Tidak Hadir" ? { backgroundColor: accentColor, color: "#fff" } : { color: textColor, border: "1px solid #e5e0d8" }}>Tidak Hadir</button>
         </div>
-        <textarea placeholder="Tuliskan ucapan..." className="w-full px-3 py-2 text-[10px] rounded-lg border border-border bg-white outline-none h-16 resize-none" />
-        <button className="w-full py-2 text-white text-[10px] rounded-full" style={{ backgroundColor: accentColor }}>Kirim Ucapan</button>
+        <textarea value={rsvpMessage} onChange={e => setRsvpMessage(e.target.value)} placeholder="Tuliskan ucapan..." className="w-full px-3 py-2 text-[10px] rounded-lg border border-border bg-white outline-none h-16 resize-none" style={{ color: "#2A1F1A" }} />
+        <button onClick={handleSendRsvp} disabled={rsvpSending} className="w-full py-2 text-white text-[10px] rounded-full disabled:opacity-60" style={{ backgroundColor: accentColor }}>{rsvpSending ? "Mengirim..." : "Kirim Ucapan"}</button>
       </div>
     )
     if (activeSection === "Ucapan") return (
       <div className="p-6 space-y-3" style={{ color: textColor }}>
         <p className="text-[9px] tracking-[0.2em] uppercase text-center" style={{ opacity: 0.6 }}>Ucapan</p>
-        {[{ n: "Dewi Sartika", m: "Selamat menempuh hidup baru!" }, { n: "Budi Santoso", m: "Bahagia selalu kalian!" }].map((u, i) => (
-          <div key={i} className="p-3 rounded-lg bg-white border border-border">
-            <p className="text-[10px] font-semibold">{u.n}</p>
-            <p className="text-[10px]" style={{ opacity: 0.7 }}>{u.m}</p>
-          </div>
-        ))}
+        {ucapanList.length === 0 ? (
+          <div className="py-6 text-center text-[10px]" style={{ opacity: 0.6 }}>Belum ada ucapan. Jadilah yang pertama mengisi RSVP!</div>
+        ) : (
+          ucapanList.map((u: any) => (
+            <div key={u.id} className="p-3 rounded-lg bg-white border border-border" style={{ color: "#2A1F1A" }}>
+              <p className="text-[10px] font-semibold">{u.name} <span className="font-normal" style={{ opacity: 0.6 }}>• {u.attendance_status}</span></p>
+              <p className="text-[10px]" style={{ opacity: 0.7 }}>{u.message || "-"}</p>
+            </div>
+          ))
+        )
+        }
       </div>
     )
     // Penutup
@@ -2742,7 +3023,12 @@ function EditorPage({ setPage, initialInvitation }: { setPage: (p: Page) => void
           <div className="flex items-center gap-1.5">
             <button className="px-2.5 py-1.5 text-[11px] border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-1"><Eye className="w-3 h-3" /> Preview</button>
             <button onClick={() => handleSave("Draft")} disabled={saving} className="px-2.5 py-1.5 text-[11px] border border-border rounded-lg hover:bg-muted transition-colors disabled:opacity-60">{saving ? "Menyimpan..." : "Simpan"}</button>
-            <button className="px-2.5 py-1.5 text-[11px] bg-muted rounded-lg hover:bg-muted/80 transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
+            <button onClick={() => {
+              if (savedId == null) { toast.error("Simpan/Publish undangan dulu sebelum membagikan!"); return }
+              const link = `http://localhost:5173/?undangan=${savedId}`
+              navigator.clipboard.writeText(link)
+              toast.success("Link undangan disalin! Tempel di WhatsApp atau media sosial.")
+            }} className="px-2.5 py-1.5 text-[11px] bg-muted rounded-lg hover:bg-muted/80 transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
             {/* ✅ BARU: tombol Hapus (muncul hanya jika undangan sudah tersimpan) */}
             {savedId != null && (
               <button onClick={() => setConfirmDelete(true)} disabled={saving || deleting} className="px-2.5 py-1.5 text-[11px] bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1 disabled:opacity-60">
@@ -3474,6 +3760,10 @@ function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }
   const [targetType, setTargetType] = useState<"admin" | "user">("admin")
   const [dbAdmins, setDbAdmins] = useState<AdminAccount[]>([])
   const [dbUsers, setDbUsers] = useState<UserAccount[]>([])
+  const [packages, setPackages] = useState<any[]>([])
+  const [pkgEditing, setPkgEditing] = useState<any | null>(null)
+  const [pkgForm, setPkgForm] = useState({ name: "", subtitle: "", price: "", original_price: "", is_popular: false, is_active: true })
+  const [pkgSaving, setPkgSaving] = useState(false)
   const [activityLog, setActivityLog] = useState<string[]>([])
   const logActivity = (msg: string) => setActivityLog(l => [`${new Date().toLocaleTimeString("id-ID")} — ${msg}`, ...l])
   const nav = (label: string) => { setActiveMenu(label); if (label === "Dashboard") setPage("dashboard"); else if (label === "Template") setPage("templates"); else if (label === "Undangan Saya") setPage("my-invitations"); else if (label === "Edit Undangan") setPage("editor"); else if (label === "Data Tamu") setPage("guest-data"); else if (label === "RSVP") setPage("rsvp"); else if (label === "Amplop Digital") setPage("digital-envelope"); else if (label === "QR Check-In") setPage("qr-checkin"); else if (label === "Domain") setPage("domain"); else if (label === "Transaksi") setPage("dashboard"); else if (label === "Pengaturan") setPage("settings"); else if (label === "Akses Admin") setPage("admin-access"); else if (label === "Akses Pengguna") setPage("user-access"); else setPage("dashboard") }
@@ -3489,8 +3779,51 @@ function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }
       setDbUsers(rows.filter((x: any) => !isAdm(x.role)))
     } catch (e) { console.error(e) }
   }
-  useEffect(() => { loadAccounts() }, [])
+  const loadPackages = async () => {
+    try {
+      const r = await fetch("http://localhost:5000/api/packages/all")
+      const d = await r.json()
+      if (d.success) setPackages(d.data)
+    } catch (e) { console.error(e) }
+  }
+  useEffect(() => { loadAccounts(); loadPackages() }, [])
   const admins = dbAdmins
+
+  const openEditPkg = (p: any) => {
+    setPkgEditing(p)
+    setPkgForm({
+      name: p.name ?? "",
+      subtitle: p.subtitle ?? "",
+      price: String(Number(p.price || 0)),
+      original_price: p.original_price ? String(Number(p.original_price)) : "",
+      is_popular: !!p.is_popular,
+      is_active: p.is_active !== false,
+    })
+  }
+  const handleSavePkg = async () => {
+    if (!pkgEditing) return
+    if (!pkgForm.name.trim()) { toast.error("Nama paket wajib diisi!"); return }
+    setPkgSaving(true)
+    try {
+      const res = await fetch(`http://localhost:5000/api/packages/${pkgEditing.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: pkgForm.name,
+          subtitle: pkgForm.subtitle,
+          price: Number(pkgForm.price || 0),
+          original_price: pkgForm.original_price ? Number(pkgForm.original_price) : null,
+          is_popular: pkgForm.is_popular,
+          is_active: pkgForm.is_active,
+        }),
+      })
+      const d = await res.json()
+      if (d.success) { toast.success(`Paket "${pkgForm.name}" diperbarui!`); setPkgEditing(null); loadPackages() }
+      else toast.error(d.message || "Gagal memperbarui paket.")
+    } catch (e) { console.error(e); toast.error("Tidak dapat terhubung ke server.") }
+    finally { setPkgSaving(false) }
+  }
+
 
   const openCreate = (t: "admin" | "user") => { setTargetType(t); setEditing(null); setForm({ name: "", email: "", password: "", role: t === "admin" ? "Admin" : "Pengguna" }); setView("form") }
   const openEditSelected = () => {
@@ -3538,18 +3871,35 @@ function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }
   const handleDeleteSelected = async () => {
     if (!selected) { toast.error("Pilih akun pada tabel terlebih dahulu!"); return }
     if (selected.type === "admin" && selected.id === 0) { toast.error("Admin Utama tidak dapat dihapus!"); return }
+
     try {
-      const url = selected.type === "admin" ? `http://localhost:5000/api/admins/${selected.id}` : `http://localhost:5000/api/users/${selected.id}`
-      const res = await fetch(url, { method: "DELETE" }); const d = await res.json()
-      if (d.success) { toast.success("Akun dihapus."); logActivity(`Hapus akun id ${selected.id}`) } else toast.error(d.message || "Gagal menghapus.")
-    } catch (e) { console.error(e); toast.error("Tidak dapat terhubung ke server.") }
-    setSelected(null); onChanged(); loadAccounts()
+      // ✅ PERBAIKAN: Semua akun (admin & pengguna) sekarang hidup di tabel users.
+      // Jadi kita cukup panggil satu endpoint ini untuk menghapus siapa saja.
+      const url = `http://localhost:5000/api/users/${selected.id}`
+
+      const res = await fetch(url, { method: "DELETE" })
+      const d = await res.json()
+
+      if (d.success) {
+        toast.success("Akun berhasil dihapus dari database.")
+        logActivity(`Hapus akun id ${selected.id}`)
+      } else {
+        toast.error(d.message || "Gagal menghapus akun.")
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error("Tidak dapat terhubung ke server.")
+    }
+
+    setSelected(null)
+    onChanged()
+    loadAccounts()
   }
   return (
     <div className="flex h-screen bg-muted overflow-hidden font-sans">
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
         <div className="px-5 py-5 border-b border-sidebar-border"><button onClick={() => setPage("dashboard")} className="flex items-center gap-2"><Heart className="w-5 h-5 text-primary fill-primary/25" /><span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span></button></div>
-        <nav className="flex-1 py-3 overflow-y-auto">{SIDEBAR_NAV.map(({ icon: Icon, label }) => (<button key={label} onClick={() => nav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}><Icon className="w-4 h-4 flex-shrink-0" />{label}</button>))}</nav>
+        <nav className="flex-1 py-3 overflow-y-auto">{navFor(user.role).map(({ icon: Icon, label }) => (<button key={label} onClick={() => nav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}><Icon className="w-4 h-4 flex-shrink-0" />{label}</button>))}</nav>
         <div className="px-5 py-4 border-t border-sidebar-border"><div className="flex items-center gap-2.5 mb-3"><div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0"><User className="w-4 h-4 text-primary" /></div><div className="min-w-0"><p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p><p className="text-[10px] text-sidebar-foreground/45 truncate">{user.email}</p></div></div><button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent text-xs transition-colors"><LogOut className="w-3.5 h-3.5" /> Keluar</button></div>
       </aside>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-foreground/40 z-30 lg:hidden" />}
@@ -3583,7 +3933,45 @@ function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }
                   <div className="flex gap-2"><button onClick={openEditSelected} className="px-4 py-2 border border-border rounded-lg text-xs hover:border-primary hover:text-primary flex items-center gap-1.5"><Edit3 className="w-3.5 h-3.5" /> Edit</button><button onClick={handleDeleteSelected} className="px-4 py-2 border border-red-200 text-red-500 rounded-lg text-xs hover:bg-red-50 flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" /> Delete</button></div>
                 </div>
               )}
-              {activeModule === "content" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Panel konten (placeholder).</div>}
+              {activeModule === "content" && (
+                <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                  <div className="p-4 border-b border-border"><h3 className="text-sm font-semibold">Kelola Paket</h3><p className="text-[11px] text-muted-foreground">Perubahan harga/status langsung terlihat di halaman checkout frontend</p></div>
+                  <table className="w-full"><thead><tr className="border-b border-border bg-muted/50">{["Paket", "Harga", "Harga Coret", "Populer", "Status", ""].map(h => <th key={h} className="px-4 py-2 text-left text-[10px] font-semibold text-muted-foreground uppercase">{h}</th>)}</tr></thead><tbody>
+                    {packages.map(p => (
+                      <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="px-4 py-2 text-xs font-medium">{p.name}<p className="text-[10px] text-muted-foreground font-normal">{p.subtitle}</p></td>
+                        <td className="px-4 py-2 text-xs">{fmt(Number(p.price))}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">{p.original_price ? fmt(Number(p.original_price)) : "-"}</td>
+                        <td className="px-4 py-2">{p.is_popular ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">Populer</span> : <span className="text-[10px] text-muted-foreground">-</span>}</td>
+                        <td className="px-4 py-2">{p.is_active ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-600">Aktif</span> : <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Nonaktif</span>}</td>
+                        <td className="px-4 py-2 text-right"><button onClick={() => openEditPkg(p)} className="text-[10px] text-primary hover:underline">Edit</button></td>
+                      </tr>
+                    ))}
+                    {packages.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-xs text-muted-foreground">Memuat paket...</td></tr>}
+                  </tbody></table>
+                </div>
+              )}
+              {pkgEditing && (
+                <div className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="w-full max-w-md bg-card rounded-2xl border border-border p-6 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Edit Paket: {pkgEditing.name}</h3><button onClick={() => setPkgEditing(null)} className="p-1 hover:bg-muted rounded-full"><X className="w-4 h-4" /></button></div>
+                    <div><label className="text-xs font-medium mb-1.5 block">Nama Paket</label><input value={pkgForm.name} onChange={e => setPkgForm({ ...pkgForm, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                    <div><label className="text-xs font-medium mb-1.5 block">Subtitle</label><input value={pkgForm.subtitle} onChange={e => setPkgForm({ ...pkgForm, subtitle: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><label className="text-xs font-medium mb-1.5 block">Harga (Rp)</label><input type="number" value={pkgForm.price} onChange={e => setPkgForm({ ...pkgForm, price: e.target.value })} className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                      <div><label className="text-xs font-medium mb-1.5 block">Harga Coret (Rp)</label><input type="number" value={pkgForm.original_price} onChange={e => setPkgForm({ ...pkgForm, original_price: e.target.value })} placeholder="Kosongkan jika tidak ada" className="w-full px-3.5 py-2.5 bg-muted border border-border rounded-lg text-sm outline-none focus:border-primary" /></div>
+                    </div>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={pkgForm.is_popular} onChange={e => setPkgForm({ ...pkgForm, is_popular: e.target.checked })} /> Badge Populer</label>
+                      <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={pkgForm.is_active} onChange={e => setPkgForm({ ...pkgForm, is_active: e.target.checked })} /> Aktif di Checkout</label>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => setPkgEditing(null)} disabled={pkgSaving} className="px-4 py-2 border border-border rounded-lg text-xs">Batal</button>
+                      <button onClick={handleSavePkg} disabled={pkgSaving} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium disabled:opacity-60">{pkgSaving ? "Menyimpan..." : "Simpan Perubahan"}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {activeModule === "system" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Panel pengaturan sistem (placeholder).</div>}
               {activeModule === "monitor" && <div className="bg-card rounded-2xl border border-border p-6"><h3 className="text-sm font-semibold mb-3">Aktivitas Terbaru</h3>{activityLog.length === 0 ? <p className="text-xs text-muted-foreground">Belum ada aktivitas.</p> : activityLog.map((l, i) => <p key={i} className="text-xs text-muted-foreground py-1 border-b border-border/40">{l}</p>)}</div>}
             </div>
@@ -3676,7 +4064,7 @@ function UserAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }:
     <div className="flex h-screen bg-muted overflow-hidden font-sans">
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-40 w-60 h-full bg-sidebar flex flex-col transition-transform duration-300 flex-shrink-0`}>
         <div className="px-5 py-5 border-b border-sidebar-border"><button onClick={() => setPage("dashboard")} className="flex items-center gap-2"><Heart className="w-5 h-5 text-primary fill-primary/25" /><span className="font-serif text-lg font-semibold italic text-sidebar-foreground">Invito</span></button></div>
-        <nav className="flex-1 py-3 overflow-y-auto">{SIDEBAR_NAV.map(({ icon: Icon, label }) => (<button key={label} onClick={() => nav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}><Icon className="w-4 h-4 flex-shrink-0" />{label}</button>))}</nav>
+        <nav className="flex-1 py-3 overflow-y-auto">{navFor(user.role).map(({ icon: Icon, label }) => (<button key={label} onClick={() => nav(label)} className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm transition-all ${activeMenu === label ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium" : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"}`}><Icon className="w-4 h-4 flex-shrink-0" />{label}</button>))}</nav>
         <div className="px-5 py-4 border-b border-sidebar-border"><div className="flex items-center gap-2.5 mb-3"><div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center flex-shrink-0"><User className="w-4 h-4 text-primary" /></div><div className="min-w-0"><p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p><p className="text-[10px] text-sidebar-foreground/45 truncate">{user.email}</p></div></div><button onClick={() => setPage("login")} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/55 hover:bg-sidebar-accent text-xs transition-colors"><LogOut className="w-3.5 h-3.5" /> Keluar</button></div>
       </aside>
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-foreground/40 z-30 lg:hidden" />}
@@ -3711,6 +4099,83 @@ function UserAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }:
           {activePanel === "layanan" && <div className="bg-card rounded-2xl border border-border p-6 text-sm text-muted-foreground">Daftar layanan (placeholder).</div>}
         </main>
       </div>
+    </div>
+  )
+}
+
+// ─── NOTIFICATION BELL ───────────────────────────────────────────────────────
+function NotificationBell({ user }: { user: UserInfo }) {
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const load = async () => {
+    if (!user.id) return
+    setLoading(true)
+    try {
+      const res = await fetch(`http://localhost:5000/api/notifications?user_id=${user.id}`)
+      const d = await res.json()
+      if (d.success) setItems(d.data)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [user.id])
+  const unread = items.filter(i => !i.is_read).length
+  const markRead = async (id: number) => {
+    try {
+      await fetch(`http://localhost:5000/api/notifications/${id}/read`, { method: "PUT" })
+      setItems(prev => prev.map(i => i.id === id ? { ...i, is_read: true } : i))
+    } catch (e) { console.error(e) }
+  }
+  const markAll = async () => {
+    if (!user.id) return
+    try {
+      await fetch(`http://localhost:5000/api/notifications/read-all?user_id=${user.id}`, { method: "PUT" })
+      setItems(prev => prev.map(i => ({ ...i, is_read: true })))
+    } catch (e) { console.error(e) }
+  }
+  const timeAgo = (iso: string) => {
+    if (!iso) return ""
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return "Baru saja"
+    if (mins < 60) return `${mins} mnt lalu`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours} jam lalu`
+    return `${Math.floor(hours / 24)} hari lalu`
+  }
+  return (
+    <div className="relative">
+      <button onClick={() => { setOpen(o => !o); if (!open) load() }} className="relative p-2 rounded-lg hover:bg-muted transition-colors">
+        <Bell className="w-4 h-4" />
+        {unread > 0 && <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">{unread}</span>}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-2xl shadow-xl z-50 overflow-hidden">
+            <div className="p-3 border-b border-border flex items-center justify-between">
+              <p className="text-xs font-semibold">Notifikasi</p>
+              {unread > 0 && <button onClick={markAll} className="text-[10px] text-primary hover:underline">Tandai semua dibaca</button>}
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {loading ? <p className="p-4 text-xs text-muted-foreground text-center">Memuat...</p>
+                : items.length === 0 ? <p className="p-4 text-xs text-muted-foreground text-center">Belum ada notifikasi.</p>
+                  : items.map(n => (
+                    <button key={n.id} onClick={() => !n.is_read && markRead(n.id)} className={`w-full text-left p-3 border-b border-border/50 last:border-0 hover:bg-muted/40 transition-colors ${n.is_read ? "opacity-60" : ""}`}>
+                      <div className="flex items-start gap-2">
+                        {!n.is_read && <span className="w-1.5 h-1.5 bg-primary rounded-full mt-1 flex-shrink-0" />}
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{n.title}</p>
+                          <p className="text-[10px] text-muted-foreground">{n.message}</p>
+                          <p className="text-[9px] text-muted-foreground/70 mt-0.5">{timeAgo(n.created_at)}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -3771,6 +4236,7 @@ export default function App() {
       case "settings": return <SettingsPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} setUser={setUser} />
       case "admin-access": return <AdminAccessPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} onChanged={syncAccounts} />
       case "user-access": return <UserAccessPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} onChanged={syncAccounts} />
+      case "seating": return <SeatingPage setPage={setPage} />
       default: return <DashboardPage setPage={setPage} activeMenu={activeMenu} setActiveMenu={setActiveMenu} user={user} openEditor={openEditor} />
     }
   }
