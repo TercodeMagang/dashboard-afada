@@ -4205,6 +4205,28 @@ export default function App() {
     }
   }
   useEffect(() => { syncAccounts() }, [])
+  // ✅ BARU: auto-login lewat kode sekali pakai (kiriman redirect pembayaran frontend)
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("code")
+    if (!code) return
+    fetch("http://localhost:5000/api/auth/code-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && d.user) {
+          setUser({ id: d.user.id, name: d.user.name, email: d.user.email, phone: "081234567890", role: d.user.role ?? "Pengguna" })
+          toast.success(`Selamat datang, ${d.user.name}! Akun Anda telah terkonfirmasi.`)
+          setPage("dashboard")
+          window.history.replaceState({}, "", window.location.pathname)
+        } else {
+          toast.error(d.message || "Kode login tidak valid atau sudah dipakai.")
+        }
+      })
+      .catch(() => toast.error("Tidak dapat terhubung ke server."))
+  }, [])
   // ✅ BARU: undangan yang sedang diedit (null = buat baru)
   const [editingInvitation, setEditingInvitation] = useState<any>(null)
   const openEditor = (inv: any = null) => {
