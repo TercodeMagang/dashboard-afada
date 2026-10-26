@@ -2067,7 +2067,7 @@ function DashboardPage({ setPage, activeMenu, setActiveMenu, user, openEditor }:
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
   useEffect(() => {
-    fetch('http://localhost:5000/api/invitations')
+    fetch(withUser("http://localhost:5000/api/invitations", user))
       .then(response => response.json())
       .then(data => {
         if (data.success) {
@@ -3870,19 +3870,30 @@ function AdminAccessPage({ setPage, activeMenu, setActiveMenu, user, onChanged }
   }
   const handleDeleteSelected = async () => {
     if (!selected) { toast.error("Pilih akun pada tabel terlebih dahulu!"); return }
-    if (selected.type === "admin" && selected.id === 0) { toast.error("Admin Utama tidak dapat dihapus!"); return }
+    // ✅ Cari data baris yang dipilih untuk validasi
+    const row = (selected.type === "admin" ? dbAdmins : dbUsers).find((a: any) => a.id === selected.id)
+    if (!row) { toast.error("Data tidak ditemukan."); return }
+    // ✅ PENGAMAN 1: Admin Utama tidak boleh dihapus (cek role persis, bukan id 0)
+    if (String(row.role).toLowerCase() === "admin utama") {
+      toast.error("Akun Admin Utama tidak dapat dihapus demi keamanan sistem!")
+      return
+    }
+    // ✅ PENGAMAN 2: tidak boleh menghapus akun yang sedang login
+    if (row.email.toLowerCase() === user.email.toLowerCase()) {
+      toast.error("Anda tidak dapat menghapus akun yang sedang login!")
+      return
+    }
+    // ✅ KONFIRMASI supaya tidak salah klik
+    if (!window.confirm(`Hapus akun "${row.name}" (${row.email})?\n\nUndangan & transaksi miliknya tidak akan dihapus, hanya dilepaskan dari akun ini.`)) return
 
     try {
-      // ✅ PERBAIKAN: Semua akun (admin & pengguna) sekarang hidup di tabel users.
-      // Jadi kita cukup panggil satu endpoint ini untuk menghapus siapa saja.
       const url = `http://localhost:5000/api/users/${selected.id}`
-
       const res = await fetch(url, { method: "DELETE" })
       const d = await res.json()
 
       if (d.success) {
-        toast.success("Akun berhasil dihapus dari database.")
-        logActivity(`Hapus akun id ${selected.id}`)
+        toast.success(`Akun "${row.name}" berhasil dihapus dari database.`)
+        logActivity(`Hapus akun ${row.name} (${row.email})`)
       } else {
         toast.error(d.message || "Gagal menghapus akun.")
       }
@@ -4180,7 +4191,10 @@ function NotificationBell({ user }: { user: UserInfo }) {
   )
 }
 
+
 /// ─── ROOT APP ────────────────────────────────────────────────────────────────
+// ✅ Penjaga sekali-jalan: mencegah effect ganda (StrictMode) memakai kode login dua kali
+let codeLoginUsed = false
 export default function App() {
   const [page, setPage] = useState<Page>("login")
   const [authTab, setAuthTab] = useState<AuthTab>("login")
@@ -4208,7 +4222,8 @@ export default function App() {
   // ✅ BARU: auto-login lewat kode sekali pakai (kiriman redirect pembayaran frontend)
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("code")
-    if (!code) return
+    if (!code || codeLoginUsed) return
+    codeLoginUsed = true
     fetch("http://localhost:5000/api/auth/code-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
