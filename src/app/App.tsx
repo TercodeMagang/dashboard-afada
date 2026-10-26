@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, ElementType,  } from "react"
 import { motion } from "motion/react"
 import {
   Heart, Menu, X, Globe, Music, Users, MapPin,
@@ -493,6 +493,7 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
   const isAdmin = isAdminRole(user.role)
   // ✅ State untuk hapus undangan
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  const [previewInv, setPreviewInv] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
   useEffect(() => {
     fetch(withUser('http://localhost:5000/api/invitations', user))
@@ -626,12 +627,11 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
                         <div className="absolute inset-0 bg-foreground/20 group-hover:bg-foreground/10 transition-colors flex items-center justify-center">
                           <p className="font-serif text-base text-white drop-shadow-lg">{inv.coupleName}</p>
                         </div>
-                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                          <button onClick={(e) => { e.stopPropagation(); openEditor(inv) }} className="px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-xs shadow-md hover:bg-primary/90 transition-colors">Edit</button>
-                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`http://localhost:5173/?undangan=${inv.id}`); toast.success("Link undangan disalin! Bagikan ke tamu Anda.") }} className="px-3 py-1.5 bg-white text-foreground rounded-full text-xs shadow-md hover:bg-muted transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
-                          {/* ✅ BARU: tombol Hapus dengan konfirmasi */}
-                          <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(inv) }} className="px-3 py-1.5 bg-red-500 text-white rounded-full text-xs shadow-md hover:bg-red-600 transition-colors">Hapus</button>
-                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`http://localhost:5173/?undangan=${inv.id}`); toast.success("Link undangan disalin! Bagikan ke tamu Anda.") }} className="px-3 py-1.5 bg-white text-foreground rounded-full text-xs shadow-md hover:bg-muted transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
+                        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/30 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 px-2">
+                          <button onClick={(e) => { e.stopPropagation(); setPreviewInv(inv) }} className="px-2.5 py-1.5 bg-white text-foreground rounded-full text-xs shadow-md hover:bg-muted transition-colors flex items-center gap-1"><Eye className="w-3 h-3" /> Preview</button>
+                          <button onClick={(e) => { e.stopPropagation(); openEditor(inv) }} className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded-full text-xs shadow-md hover:bg-primary/90 transition-colors">Edit</button>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`http://localhost:5173/?undangan=${inv.id}`); toast.success("Link undangan disalin! Bagikan ke tamu Anda.") }} className="px-2.5 py-1.5 bg-white text-foreground rounded-full text-xs shadow-md hover:bg-muted transition-colors flex items-center gap-1"><Share2 className="w-3 h-3" /> Bagikan</button>
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(inv) }} className="px-2.5 py-1.5 bg-red-500 text-white rounded-full text-xs shadow-md hover:bg-red-600 transition-colors flex items-center gap-1"><Trash2 className="w-3 h-3" /> Hapus</button>
                         </div>
                       </div>
                       <div className="px-3.5 py-2.5 flex items-center justify-between">
@@ -653,6 +653,28 @@ function MyInvitationsPage({ setPage, activeMenu, setActiveMenu, user, openEdito
           </div>
         </main>
       </div>
+
+            {/* ✅ BARU: modal preview ponsel — memuat halaman publik asli lewat iframe */}
+      {previewInv && (
+        <div className="fixed inset-0 z-50 bg-foreground/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPreviewInv(null)}>
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewInv(null)} className="absolute -top-3 -right-3 z-10 w-9 h-9 bg-card rounded-full shadow-lg flex items-center justify-center hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="w-[320px] h-[640px] bg-foreground rounded-[2.6rem] p-2.5 shadow-2xl">
+              <div className="relative w-full h-full bg-background rounded-[2rem] overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-foreground rounded-b-2xl z-10" />
+                <iframe
+                  src={`http://localhost:5173/?undangan=${previewInv.id}&preview=1`}
+                  className="w-full h-full border-0"
+                  title="Preview Undangan"
+                />
+              </div>
+            </div>
+            <p className="text-center text-[11px] text-muted-foreground mt-3">Preview interaktif — klik "Buka Undangan" lalu gulir di dalam ponsel</p>
+          </div>
+        </div>
+      )}
       {/* ✅ BARU: dialog peringatan hapus */}
       <ConfirmDeleteDialog
         open={deleteTarget !== null}
